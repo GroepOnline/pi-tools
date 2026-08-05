@@ -1,18 +1,18 @@
 {
-  "name": "@ff-labs/pi-fff",
+  "name": "@groeponline/pi-fff",
   "public": true,
-  "version": "0.6.0",
+  "version": "0.1.0",
   "description": "pi extension: FFF-powered fuzzy file and content search",
   "type": "module",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/dmtrKovalenko/fff.git",
+    "url": "git+https://github.com/GroepOnline/pi-tools.git",
     "directory": "packages/pi-fff"
   },
-  "homepage": "https://github.com/dmtrKovalenko/fff/tree/main/packages/pi-fff",
+  "homepage": "https://github.com/GroepOnline/pi-tools/tree/main/packages/pi-fff",
   "bugs": {
-    "url": "https://github.com/dmtrKovalenko/fff/issues"
+    "url": "https://github.com/GroepOnline/pi-tools/issues"
   },
   "keywords": [
     "pi",

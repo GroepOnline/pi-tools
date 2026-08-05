@@ -2,7 +2,7 @@ name: Build & Publish
 
 on:
   push:
-    branches: [main, fix/use-trusted-publishing]
+    branches: [main]
     tags:
       - "v*"
   pull_request:
@@ -694,10 +694,12 @@ jobs:
     name: Publish npm packages
     needs: [build-c]
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/fix/use-trusted-publishing' || startsWith(github.ref, 'refs/tags/v'))
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
     permissions:
       contents: read
       id-token: write
+    env:
+      NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
     steps:
       - uses: actions/checkout@v5
 
@@ -733,7 +735,7 @@ jobs:
               make set-npm-version PKG="$pkg_dir" VERSION="$VERSION"
 
               cd "$pkg_dir"
-              npm publish --tag "$TAG" --access public --provenance
+              npm publish --tag "$TAG" --access public
               cd -
             fi
           done
@@ -747,7 +749,7 @@ jobs:
           make set-npm-version PKG=packages/fff-bun VERSION="$VERSION"
 
           cd packages/fff-bun
-          npm publish --tag "$TAG" --access public --provenance
+          npm publish --tag "$TAG" --access public
 
       - name: Publish Node.js package
         run: |
@@ -760,15 +762,15 @@ jobs:
           cd packages/fff-node
           npm install
           npm run build
-          npm publish --tag "$TAG" --access public --provenance
+          npm publish --tag "$TAG" --access public
 
       - name: Publish pi-fff package
         run: |
           VERSION="${{ steps.version.outputs.version }}"
           TAG="${{ steps.version.outputs.npm_tag }}"
 
-          echo "Publishing @ff-labs/pi-fff@${VERSION} with tag ${TAG}..."
+          echo "Publishing @groeponline/pi-fff@${VERSION} with tag ${TAG}..."
           make set-npm-version PKG=packages/pi-fff VERSION="$VERSION"
 
           cd packages/pi-fff
-          npm publish --tag "$TAG" --access public --provenance
+          npm publish --tag "$TAG" --access public
