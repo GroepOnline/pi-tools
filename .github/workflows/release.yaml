@@ -722,48 +722,6 @@ jobs:
           pattern: npm-*
           path: ./npm-packages
 
-      - name: Publish platform packages
-        run: |
-          VERSION="${{ steps.version.outputs.version }}"
-          TAG="${{ steps.version.outputs.npm_tag }}"
-
-          for pkg_dir in ./npm-packages/npm-*/; do
-            if [ -d "$pkg_dir" ]; then
-              pkg_name=$(node -p "require('${pkg_dir}package.json').name")
-              echo "Publishing ${pkg_name}@${VERSION} with tag ${TAG}..."
-
-              make set-npm-version PKG="$pkg_dir" VERSION="$VERSION"
-
-              cd "$pkg_dir"
-              npm publish --tag "$TAG" --access public
-              cd -
-            fi
-          done
-
-      - name: Publish bun package
-        run: |
-          VERSION="${{ steps.version.outputs.version }}"
-          TAG="${{ steps.version.outputs.npm_tag }}"
-
-          echo "Publishing @ff-labs/fff-bun@${VERSION} with tag ${TAG}..."
-          make set-npm-version PKG=packages/fff-bun VERSION="$VERSION"
-
-          cd packages/fff-bun
-          npm publish --tag "$TAG" --access public
-
-      - name: Publish Node.js package
-        run: |
-          VERSION="${{ steps.version.outputs.version }}"
-          TAG="${{ steps.version.outputs.npm_tag }}"
-
-          echo "Publishing @ff-labs/fff-node@${VERSION} with tag ${TAG}..."
-          make set-npm-version PKG=packages/fff-node VERSION="$VERSION"
-
-          cd packages/fff-node
-          npm install
-          npm run build
-          npm publish --tag "$TAG" --access public
-
       - name: Publish pi-fff package
         run: |
           VERSION="${{ steps.version.outputs.version }}"
