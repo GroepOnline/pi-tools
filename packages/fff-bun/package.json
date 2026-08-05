@@ -1,5 +1,5 @@
 {
-  "name": "@ff-labs/fff-bun",
+  "name": "@groeponline/fff-bun",
   "version": "0.1.37",
   "private": false,
   "description": "High-performance fuzzy file finder for Bun - perfect for LLM agent tools",

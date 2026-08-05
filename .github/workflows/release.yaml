@@ -722,6 +722,30 @@ jobs:
           pattern: npm-*
           path: ./npm-packages
 
+      - name: Publish bun package
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          TAG="${{ steps.version.outputs.npm_tag }}"
+
+          echo "Publishing @groeponline/fff-bun@${VERSION} with tag ${TAG}..."
+          make set-npm-version PKG=packages/fff-bun VERSION="$VERSION"
+
+          cd packages/fff-bun
+          npm publish --tag "$TAG" --access public
+
+      - name: Publish Node.js package
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          TAG="${{ steps.version.outputs.npm_tag }}"
+
+          echo "Publishing @groeponline/fff-node@${VERSION} with tag ${TAG}..."
+          make set-npm-version PKG=packages/fff-node VERSION="$VERSION"
+
+          cd packages/fff-node
+          npm install
+          npm run build
+          npm publish --tag "$TAG" --access public
+
       - name: Publish pi-fff package
         run: |
           VERSION="${{ steps.version.outputs.version }}"

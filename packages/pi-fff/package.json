@@ -40,8 +40,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@ff-labs/fff-bun": "*",
-    "@ff-labs/fff-node": "*"
+    "@groeponline/fff-bun": "*",
+    "@groeponline/fff-node": "*"
   },
   "peerDependencies": {
     "@earendil-works/pi-coding-agent": "*",
