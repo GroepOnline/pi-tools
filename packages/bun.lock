@@ -28,9 +28,9 @@
         "typescript": "^5.0.0",
       },
     },
-    "pi-fff": {
-      "name": "@groeponline/pi-fff",
-      "version": "0.6.0",
+    "pi-tools": {
+      "name": "@groeponline/pi-tools",
+      "version": "0.10.5",
       "dependencies": {
         "@groeponline/fff-bun": "*",
         "@groeponline/fff-node": "*",
@@ -172,7 +172,7 @@
 
     "@groeponline/fff-node": ["@groeponline/fff-node@workspace:fff-node"],
 
-    "@groeponline/pi-fff": ["@groeponline/pi-fff@workspace:pi-fff"],
+    "@groeponline/pi-tools": ["@groeponline/pi-tools@workspace:pi-tools"],
 
     "@jridgewell/gen-mapping": ["@jridgewell/gen-mapping@0.3.13", "", { "dependencies": { "@jridgewell/sourcemap-codec": "^1.5.0", "@jridgewell/trace-mapping": "^0.3.24" } }, "sha512-2kkt/7niJ6MgEPxF0bYdQ6etZaA+fQvDcLKckhy1yIQOzaoKjBBjSj63/aLVjYE3qhRt5dvM+uUyfCg6UKCBbA=="],
 
