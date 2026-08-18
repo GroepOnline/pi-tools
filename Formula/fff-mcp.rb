@@ -12,24 +12,24 @@ class FffMcp < Formula
   on_macos do
     on_arm do
       url "#{RELEASE_BASE}/v#{version}/fff-mcp-aarch64-apple-darwin"
-      sha256 "2f1a75c2401e5df7f5a10827f9ce9fe8401f290ff99c3f3f1423c7d7b156d849"
+      sha256 "a72ccc99cace4e611c56092ba0c7614b52efc40eda0b7e0e8fef74d45bdc34fb"
     end
 
     on_intel do
       url "#{RELEASE_BASE}/v#{version}/fff-mcp-x86_64-apple-darwin"
-      sha256 "c81e22a7fb657731a7441be877c622a110eb7e7dbc94e3b57d79c9cea91f38db"
+      sha256 "290d3e28aa6bd8fbdef38110f05e920585ad5f15a6ea5074a283e010caa4ea0d"
     end
   end
 
   on_linux do
     on_arm do
       url "#{RELEASE_BASE}/v#{version}/fff-mcp-aarch64-unknown-linux-gnu"
-      sha256 "48f5af0d9e6ef4506c5cccd3f4571da4f0acc9b9c0967832167e49fe651f8ee5"
+      sha256 "09db135ec134643deb21ef0771a03cd57938305b7da8af7c8b953186383bab15"
     end
 
     on_intel do
       url "#{RELEASE_BASE}/v#{version}/fff-mcp-x86_64-unknown-linux-gnu"
-      sha256 "0408cbac06303b3bf2041181089d8b4974b527883242bdcf8ba599b41c003973"
+      sha256 "42abdf842b20063ce4f1fc752725eaffbce8ecf7944b83bcc00621f4bbd80f9d"
     end
   end
 
