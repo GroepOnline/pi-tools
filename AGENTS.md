@@ -1,65 +1,62 @@
-# GroepOnline/pi-tools maintainer guide
+# To Clankers
 
-**GroepOnline/pi-tools** is the source repository for the local-search components that power the Pi extension [`@groeponline/pi-tools`](./packages/pi-tools/). The repository contains the complete workspace: Rust search primitives, native bindings, TypeScript packages, the Pi extension, MCP server, Neovim integration, tests, and release tooling.
+**GroepOnline/pi-tools** is GroepOnline's canonical file-search toolkit: typo-resistant, SIMD-accelerated path and content search. The product is the pi extension `@groeponline/pi-fff`. The repo also contains the MCP server, fff.nvim, Node/Bun SDKs, C library, Python bindings, and Rust crates.
 
-The primary public product is `@groeponline/pi-tools`. Treat its tool registration, configuration contract, and local-data behaviour as compatibility-sensitive.
+## Development Commands
 
-## Development commands
+Prefer Makefile commands over cargo/bun/npm where they exist.
 
-Prefer Makefile targets for workspace-wide tasks.
+- `make build` - build everything (Rust crates + native libs)
+- `make lint` - Rust linting and analysis
+- `make format` - format all code
+- `make test` - Rust unit/integration tests
+- `make test-node` - Node SDK tests (requires built `libfff_c`)
+- `bun test packages/pi-fff/test/` - pi extension tests (no native lib needed)
+- `npm run check:ci` in `packages/` - oxlint + oxfmt checks
 
-| Task | Command |
-| --- | --- |
-| Build workspace artifacts | `make build` |
-| Run Rust linting and analysis | `make lint` |
-| Format the workspace | `make format` |
-| Run Rust unit and integration tests | `make test` |
-| Run Node SDK tests | `make test-node` |
-| Run Pi extension tests | `bun test packages/pi-tools/test/` |
-| Validate TypeScript package formatting and linting | `cd packages && npm run check:ci` |
+> `cargo` is intentionally not installed on joep's laptop. Build Rust on the runner: `ssh chef@chef-runner-01-1 'cd <checkout> && export PATH=$HOME/.cargo/bin:$PATH && cargo build --release'`.
 
-Run the smallest relevant test set first, then run the broader check when a change crosses package or native-binding boundaries.
+## Coding rules
 
-## Coding standards
-
-Keep implementation comments concise and useful. Comments should explain a non-obvious decision, invariant, or external constraint; they should not narrate straightforward code. Avoid module-level comment blocks and private API documentation unless the implementation cannot be safely understood without it.
-
-Keep public interfaces stable unless a versioned migration is part of the change. Prefer private helpers and types when they are not used outside their module. Place small utility functions after the primary behaviour they support.
-
-For TypeScript changes in `packages/pi-tools/`, validate user input, preserve the tool-registration flow, and reuse existing utilities such as `loadSdk`, `buildQuery`, and `AuxFinderPool`. Do not break the `@`-completion provider or the startup fallback that registers tools before an agent turn.
-
-For Rust changes, prefer methods where state belongs to a type. Split a source file when it grows into several independent implementations. Do not introduce long-held mutexes or read-write locks without design review.
+- **Reduce comment size.** Every comment is a concise 1-2 liner; max 4 lines only for genuinely unintuitive concepts.
+- No module-level or top-of-file comment blocks.
+- No doc comments on private structs/functions.
+- Keep structs/functions private when they can be.
+- Utility functions go at the end of the file.
+- Never change top-level Rust, Lua, C, or bun APIs.
 
 ## Architecture
 
-Performance-sensitive search lives in Rust; host integrations remain in their wrappers.
+Everything performance-critical lives in Rust; everything host-specific lives in the wrappers.
 
-| Area | Responsibility |
-| --- | --- |
-| `crates/fff-core` | File index, watcher, frecency, query history, and ranking. |
-| `crates/fff-grep` | SIMD-accelerated content search. |
-| `crates/fff-query-parser` | Search-path and constraint parsing. |
-| `crates/fff-c` | Native C ABI consumed by language bindings. |
-| `crates/fff-mcp` | MCP server. |
-| `crates/fff-nvim` and `lua/` | Neovim integration. |
-| `packages/fff-node` and `packages/fff-bun` | TypeScript SDKs. |
-| `packages/pi-tools` | Pi extension and configuration schema. |
+- `crates/fff-core` - index, background watcher, frecency/history LMDB dbs, scoring
+- `crates/fff-grep` - SIMD content search; `crates/fff-query-parser` - query constraints
+- `crates/fff-c` - C FFI (consumed by Node/Bun/Python); `crates/fff-mcp` - MCP server
+- `crates/fff-nvim` + `lua/` - Neovim plugin
+- `packages/fff-node`, `packages/fff-bun` - SDKs (published as `@groeponline/*`)
+- `packages/pi-fff` - the pi extension (`@groeponline/pi-fff`), our main product
 
-Frecency and query-history databases hold local search-state information. `pi-tools` defaults to directories under `~/.pi/agent/fff/` and can reuse compatible local editor databases when configured paths are absent.
+Databases: frecency (LMDB, file access patterns) and query history (LMDB, past searches). Both can be shared with fff.nvim; pi-fff defaults to `~/.pi/agent/fff/`.
 
-## Package and release boundaries
+## Package rules
 
-All GroepOnline-published TypeScript packages use the `@groeponline` scope. Ensure package imports, manifests, generated metadata, lockfiles, and documentation use the same scope. A scope mismatch between an import and manifest is a runtime defect.
+- Canonical repo is `GroepOnline/pi-tools`.
+- We publish `@groeponline/pi-fff`, `@groeponline/fff-node`, and `@groeponline/fff-bun`.
+- `@ff-labs/fff-bin-*` platform packages stay under that npm scope; we consume them and do not republish them.
+- pi-fff source imports must match the `@groeponline` deps — a scope rename that leaves old SDK imports behind is a runtime bug.
+- Update lockfiles (`packages/bun.lock`, `packages/package-lock.json`) when touching package names or deps.
+- CI: builds/publishes only on v* tags + workflow_dispatch; test matrix is Linux-only on push/PR.
+- Releases: [`docs/RELEASE.md`](./docs/RELEASE.md).
 
-The platform-specific `@ff-labs/fff-bin-*` packages remain external binary dependencies until GroepOnline provides a replacement publishing pipeline. Do not rename or publish those packages as part of routine package work.
+## Working with Rust
 
-When changing package names, dependencies, or dependency ranges, update both `packages/bun.lock` and `packages/package-lock.json`. When adding or changing a Pi configuration option, update all of the following in the same change:
+- Prefer struct methods over free functions.
+- More than 2 impls in a file -> split the file.
+- Be careful with mutex/rwlock: check with a human before introducing long-held locks.
 
-1. The configuration loader and schema.
-2. `packages/pi-tools/README.md`.
-3. The root `README.md` when the option affects product-level behaviour.
-4. Relevant tests.
+## Working with pi-fff (TypeScript)
 
-## Quality bar
-
-Every behaviour change needs an appropriate automated test. Keep changes focused, maintain clear user-facing errors, and verify package checks before release. Public documentation must describe the behaviour users receive today, not a planned or experimental behaviour unless it is explicitly marked as such.
+- Validate user inputs; document public function types.
+- Reuse existing helpers (`loadSdk`, `buildQuery`, `AuxFinderPool`).
+- Never break tool registration or the `@`-autocomplete provider flow.
+- When adding config options, update `packages/pi-fff/README.md` and the main `README.md`.

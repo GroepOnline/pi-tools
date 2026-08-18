@@ -1,134 +1,247 @@
-<a href="./assets/logo-orange.png"><img alt="GroepOnline FFF" src="./assets/logo-orange.png" width="300"></a>
+<a href="./assets/logo-orange.png"><img alt="FFF" src="./assets/logo-orange.png" width="300"></a>
 
-# GroepOnline FFF
+<p>
+  <i>A file search toolkit for humans and AI agents. Really fast.</i>
+</p>
 
-**GroepOnline FFF** is the local search foundation behind [`@groeponline/pi-tools`](https://pi.dev/packages/@groeponline/pi-tools). It gives Pi agents fast, context-aware file discovery and content search without sending project files to a separate search service.
+Typo-resistant path and content search, frequency-ranked file access, a background watcher, and a lightweight in-memory content index. Way faster than CLIs like ripgrep and fzf in any long-running process that searches more than once.
 
-The repository contains the complete implementation used by the extension: the Rust search engine, native bindings, TypeScript packages, the Pi integration, tests, and release tooling. The primary supported product is **`@groeponline/pi-tools`**.
+**[GroepOnline/pi-tools](https://github.com/GroepOnline/pi-tools)** is GroepOnline's file search toolkit. The product we ship is the pi extension [`@groeponline/pi-fff`](#pi-agent-extension). The same repository also contains the Neovim plugin, MCP server, Node/Bun SDKs, C library, Python bindings, and Rust crates, so every frontend shares one Rust core.
 
-## Start with Pi
+---
 
-Install the extension globally for your Pi environment:
+## Contents
 
-```bash
-pi install npm:@groeponline/pi-tools
-```
+- [Pi agent extension](#pi-agent-extension) — `@groeponline/pi-fff`
+- [Packages](#packages) — what we publish
+- [Carried components](#carried-components) — MCP server, fff.nvim, Node/Bun SDK, Rust crate, C library, Python bindings
+- [Performance](#performance)
+- [Repository layout](#repository-layout)
+- [Contributing](#contributing) · [License](#license)
 
-Use a project-local installation when the search behaviour should be scoped to one workspace:
+---
 
-```bash
-pi install -l npm:@groeponline/pi-tools
-```
+## Pi agent extension
 
-> The package page, version history, and installation command are published at [pi.dev/packages/@groeponline/pi-tools](https://pi.dev/packages/@groeponline/pi-tools).
-
-## What the extension provides
-
-| Capability | Pi surface | Practical outcome |
-| --- | --- | --- |
-| Fuzzy path discovery | `fffind` | Finds relevant files from partial, reordered, or slightly misspelled path terms. |
-| Content search | `ffgrep` | Searches indexed file content with smart-case matching, path filters, context lines, and pagination. |
-| File mentions | `@` completion | Ranks mention suggestions using the local index and file-use history. |
-| Explicit replacement mode | `override` | Registers the FFF implementation under Pi’s standard `find`, `grep`, and `multi_grep` tool names. |
-| Session controls | `/fff-mode`, `/fff-health`, `/fff-rescan` | Lets users inspect, configure, and refresh the local search experience. |
-
-The extension indexes the current workspace in the background and keeps the index available for repeated searches. Result ranking can account for local Git state and frecency information when that data is available.
-
-## Select an operating mode
-
-`tools-and-ui` is the default because it adds FFF capabilities without changing the standard tool names. Choose `override` only when an agent or workflow should use FFF through Pi’s built-in `find` and `grep` names.
-
-| Mode | Tools | `@` file completion | When to use it |
-| --- | --- | --- | --- |
-| `tools-and-ui` | Adds `fffind` and `ffgrep` | FFF-backed | Recommended default for interactive Pi use. |
-| `tools-only` | Adds `fffind` and `ffgrep` | Pi default | Use when another extension owns autocomplete. |
-| `override` | Registers FFF as `find`, `grep`, and `multi_grep` | FFF-backed | Use only when replacing the standard tools is intentional. |
-
-Set the startup mode with a flag, environment variable, or global configuration file:
+A [pi](https://github.com/badlogic/pi-mono) extension that replaces the built-in `find` and `grep` tools with FFF and feeds the interactive editor's `@`-mention autocomplete from the frecency-ranked index.
 
 ```bash
-pi --fff-mode override
-# or
-PI_FFF_MODE=tools-only pi
+pi install npm:@groeponline/pi-fff
 ```
 
-The precedence order is **flag → environment variable → configuration file → default**. A mode selected with `/fff-mode` is retained for the current session history; use `/reload` after moving into or out of `override` so Pi can register the correct tool names.
+Project-local install:
 
-## Configure persistent defaults
-
-Create `~/.pi/agent/pi-tools.json` to define defaults for all local Pi sessions. The directory respects `PI_CODING_AGENT_DIR` when it is set.
-
-```json
-{
-  "$schema": "https://raw.githubusercontent.com/GroepOnline/pi-tools/main/packages/pi-tools/pi-tools.schema.json",
-  "mode": "tools-and-ui",
-  "enableFsRootScanning": false,
-  "enableHomeDirScanning": true
-}
+```bash
+pi install -l npm:@groeponline/pi-fff
 ```
 
-| Setting | Type | Default | Purpose |
-| --- | --- | --- | --- |
-| `mode` | `tools-and-ui` \| `tools-only` \| `override` | `tools-and-ui` | Controls registered tools and mention completion. |
-| `frecencyDbPath` | string | Auto-resolved | Sets the location of file-use ranking data. |
-| `historyDbPath` | string | Auto-resolved | Sets the location of query-selection history. |
-| `enableFsRootScanning` | boolean | `false` | Allows indexing when Pi starts from `/`. |
-| `enableHomeDirScanning` | boolean | `true` | Allows indexing when Pi starts from the user home directory. |
+### What it replaces
 
-`--fff-frecency-db`, `--fff-history-db`, `--fff-enable-root-scan`, and `--fff-enable-home-scan` provide command-line overrides. Their environment-variable counterparts are `FFF_FRECENCY_DB`, `FFF_HISTORY_DB`, `FFF_ENABLE_ROOT_SCAN`, and `FFF_ENABLE_HOME_SCAN`.
+| Built-in tool | pi-fff replacement | Improvement |
+|---|---|---|
+| `find` (spawns `fd`) | `fffind` (FFF `fileSearch`) | Fuzzy matching, frecency ranking, git-aware, pre-indexed |
+| `grep` (spawns `rg`) | `ffgrep` (FFF `grep`) | SIMD-accelerated, frecency-ordered, mmap-cached, no subprocess |
+| *(none)* | `fff-multi-grep` (FFF `multiGrep`) | OR-logic multi-pattern search via Aho-Corasick |
+| `@` file autocomplete (fd-backed) | `@` file autocomplete (FFF-backed, default) | Fuzzy ranking from the FFF index and frecency |
 
-## Local data and privacy
+### Modes
 
-GroepOnline FFF operates inside the local Pi process. The extension does not introduce network calls, telemetry, or credential handling. It indexes files reachable from the selected workspace and stores optional search-state data locally.
+Three operating modes, switchable at runtime with `/fff-mode`:
 
-By default, the extension reuses compatible existing local search databases when present. Otherwise, it creates frecency and query-history directories under `~/.pi/agent/fff/`. If persistent storage cannot be opened, search continues without that ranking state and Pi shows a warning.
-
-When Pi starts from a home directory, indexing can cover a large tree and consume noticeable CPU while the initial scan is running. Disable that behaviour with `--fff-enable-home-scan=false` or `FFF_ENABLE_HOME_SCAN=0` when appropriate.
-
-## Workspace layout
-
-| Path | Responsibility |
+| Mode | What it does |
 | --- | --- |
-| `packages/pi-tools/` | Published Pi extension and its configuration schema. |
-| `packages/fff-node/` and `packages/fff-bun/` | TypeScript bindings used by the extension and custom integrations. |
-| `crates/fff-core/` | Indexing, ranking, watcher, and local persistence primitives. |
-| `crates/fff-grep/` | Native content-search implementation. |
-| `crates/fff-c/` | C ABI used by language bindings. |
-| `crates/fff-mcp/` | MCP server implementation. |
-| `crates/fff-nvim/`, `lua/`, and `doc/` | Neovim integration. |
-| `tests/` and `packages/pi-tools/test/` | Engine and extension tests. |
+| `tools-and-ui` (default) | Adds `ffgrep` and `fffind` tools, replaces `@`-mention autocomplete with FFF. |
+| `tools-only` | Only tool injection. Keeps pi's native editor autocomplete. |
+| `override` | Replaces pi's built-in `grep`, `find`, and `multi_grep` with FFF implementations. |
 
-## Develop and validate
+Env vars: `PI_FFF_MODE`, `FFF_FRECENCY_DB`, `FFF_HISTORY_DB`. Flags: `--fff-mode`, `--fff-frecency-db`, `--fff-history-db`. The databases default to your existing fff.nvim ones when present, otherwise `~/.pi/agent/fff/`.
 
-The repository uses Rust for performance-sensitive functionality and TypeScript for host integration. Prefer the Makefile targets for workspace-wide work:
+### Agent-facing tools
 
-```bash
-make build
-make lint
-make test
+- `ffgrep`. Content search. Accepts `path`, `exclude` (comma, space, or array; leading `!` optional), `caseSensitive`, `context`, and cursor pagination. Auto-detects regex, falls back to fuzzy on zero exact matches, rejects `.*`-style wildcard-only patterns up front.
+- `fffind`. Path and filename search. Matches the whole repo-relative path, not just the filename. Frecency-aware. The weak-match detector flags scattered fuzzy noise before it floods the agent's context.
+
+### Commands
+
+- `/fff-mode [tools-and-ui | tools-only | override]`. Show or switch the mode.
+- `/fff-health`. Picker, frecency, and git integration status.
+- `/fff-rescan`. Force a rescan.
+
+Source: [`packages/pi-fff/`](./packages/pi-fff/). Full documentation: [`packages/pi-fff/README.md`](./packages/pi-fff/README.md).
+
+---
+
+## Packages
+
+- **We publish** under the `@groeponline` npm scope: `@groeponline/pi-fff`, `@groeponline/fff-node`, `@groeponline/fff-bun`. Releases are cut from `v*` tags; see [`docs/RELEASE.md`](./docs/RELEASE.md).
+- **CI.** Build and publish runs on version tags and manual dispatch. The test matrix is Linux-only on push/PR and expands to the full 3-OS matrix on release tags.
+- **Native binaries.** The Node/Bun SDKs load `@ff-labs/fff-bin-*` platform packages from npm. We consume those packages; we do not republish them.
+
+---
+
+## Carried components
+
+These frontends share the Rust core in this repository. Install the published `@groeponline` packages where they exist; otherwise build from source here.
+
+### MCP server
+
+A file search MCP server for Claude Code, Codex, OpenCode, Cursor, Cline and any MCP-capable client. Fewer grep roundtrips, less wasted context.
+
+- Frecency memory, warm-up from git touch history.
+- Definition-first hinting classified on the Rust side.
+- Smart-case with auto-fuzzy fallback: `IsOffTheRecord` finds snake_case variants; zero-match queries retry as fuzzy.
+- Git-aware annotations for modified, untracked and staged files.
+
+Installers: [`install-mcp.sh`](./install-mcp.sh) and [`install-mcp.ps1`](./install-mcp.ps1). Prebuilt binaries: [GitHub Releases](https://github.com/GroepOnline/pi-tools/releases). Source: [`crates/fff-mcp/`](./crates/fff-mcp/).
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/GroepOnline/pi-tools/main/install-mcp.sh | bash
 ```
 
-For the Pi extension specifically:
+### fff.nvim
 
-```bash
-cd packages
-npm run check:ci
-bun test pi-tools/test/
+A Neovim file picker built on the same Rust core: fuzzy + frecency + git-aware ranking, live grep, preview, multi-select and quickfix.
+
+```lua
+{ 'GroepOnline/pi-tools', build = 'make build' }
 ```
 
-See [`AGENTS.md`](./AGENTS.md) for maintainer conventions, compatibility requirements, and release boundaries.
+Config reference: `:help fff.nvim`. Source: [`lua/`](./lua/) + [`crates/fff-nvim/`](./crates/fff-nvim/).
 
-## Support and contributions
+### Node & Bun SDK
 
-Report reproducible defects and propose improvements through the [GroepOnline issue tracker](https://github.com/GroepOnline/pi-tools/issues). Contributions should include focused tests where behaviour changes and must preserve Pi tool-registration compatibility.
+TypeScript wrapper over the C library. Build custom agent tools, CLIs or IDE integrations.
+
+```bash
+npm install @groeponline/fff-node
+# or
+bun add @groeponline/fff-node
+```
+
+```ts
+import { FileFinder } from "@groeponline/fff-node";
+
+const finder = FileFinder.create({ basePath: process.cwd(), aiMode: true });
+if (!finder.ok) throw new Error(finder.error);
+await finder.value.waitForScan(10_000);
+
+const files = finder.value.fileSearch("incognito profile", { pageSize: 20 });
+const hits = finder.value.grep("GetOffTheRecordProfile", { mode: "plain", smartCase: true });
+
+// 10-100x faster glob matching than Bun's and Node's implementations
+const rustFiles = finder.value.glob("**/*.rs", { pageSize: 100 });
+
+finder.value.destroy();
+```
+
+Every method returns a `Result<T>` (`{ ok: true, value } | { ok: false, error }`). Type reference: [`packages/fff-node/src/types.ts`](./packages/fff-node/src/types.ts).
+
+### Rust crate
+
+FFF is written in Rust, so this is the lowest-overhead way to use it. Use the workspace crate from this repository:
+
+```toml
+[dependencies]
+fff-search = { git = "https://github.com/GroepOnline/pi-tools" }
+```
+
+Source: [`crates/fff-core/`](./crates/fff-core/).
+
+### C library
+
+Stable C ABI. Bind from C/C++, Zig, Go via cgo, Python via ctypes, or anything with C FFI.
+
+```bash
+make build-c-lib
+# or: cargo build --release -p fff-c --features zlob
+```
+
+The `zlob` feature (requires the [Zig](https://ziglang.org) toolchain) switches glob matching and filesystem traversal to [zlob](https://github.com/dmtrKovalenko/zlob)'s native parallel walker. The output is a `cdylib` (`libfff_c.so` / `.dylib` / `fff_c.dll`); the header lives at [`crates/fff-c/include/fff.h`](./crates/fff-c/include/fff.h). Source: [`crates/fff-c/`](./crates/fff-c/).
+
+### Python bindings
+
+Build from this repository with `uv`:
+
+```bash
+cd packages/fff-python
+uv sync --all-extras
+uv run maturin develop --release
+```
+
+```python
+from fff import FileFinder
+
+with FileFinder("/path/to/project", watch=False) as finder:
+    finder.wait_for_scan_blocking(timeout_ms=5000)
+
+    result = finder.search("main")
+    for item, score in zip(result.items, result.scores):
+        print(f"{item.relative_path}: {score.total}")
+
+    hits = finder.grep("class Profile", mode="plain", before_context=1, after_context=1)
+```
+
+---
+
+## Performance
+
+### Why FFF is faster
+
+ripgrep and fzf are great CLI tools, but every invocation forks a new process, re-reads `.gitignore`, re-stats directories and rebuilds state before it can answer. FFF keeps the index and file cache resident in one long-lived process and exposes the same Rust core through every layer. On a 500k-file Chromium checkout that is the difference between 3–9 seconds per ripgrep spawn and sub-10 ms per FFF query.
+
+- **No process spawn.** Every call stays in-process.
+- **Typo-resistant matching.** Smith-Waterman fuzzy scoring on the grep path; SIMD-accelerated fuzzy matching (from the [frizbee](https://github.com/saghen/frizbee) core) for paths, surviving dropped characters and reorderings.
+- **Persistent memory.** Directory tree, git status, frecency and content index stay warm between searches.
+
+### Memory tradeoff
+
+FFF keeps its index in RAM: about 360 bytes per indexed file for the content index (≈36 MB for a 100k-file repo). On a 14k-file repo the resident footprint is ≈26 MB. Binaries, oversized files and non-grep-able files are skipped; the index can be memory-mapped instead of anonymous RAM.
+
+If you run one grep from a shell, `rg` is still the right tool. If you run dozens inside one process, FFF pays for itself from the second call.
+
+### How it compares
+
+- **ripgrep** — same regex engine, better plain-text matching, resident content index. Wins on repeated-search workloads, loses on "grep once from bash".
+- **fzf** — FFF is fuzzy like fzf, but also frecency-aware, git-aware and more typo-tolerant.
+- **Telescope / fzf-lua / snacks.picker** — FFF ships its own picker on the same core.
+- **Tantivy / full-text engines** — different class: Tantivy persists an inverted index for document scoring at scale; FFF is scoped to one repository and optimised for sub-10 ms response.
+
+---
+
+## Repository layout
+
+- `crates/fff-core` - Rust core: index, watcher, frecency, scoring.
+- `crates/fff-grep` - SIMD content search.
+- `crates/fff-query-parser` - Query constraint parsing.
+- `crates/fff-c` - C FFI library used by every language binding.
+- `crates/fff-mcp` - MCP server binary.
+- `crates/fff-nvim` - Lua/mlua bindings for the Neovim plugin.
+- `crates/fff-python` - Python bindings (maturin).
+- `packages/fff-node` - Node.js SDK (`@groeponline/fff-node`).
+- `packages/fff-bun` - Bun SDK (`@groeponline/fff-bun`).
+- `packages/pi-fff` - pi extension (`@groeponline/pi-fff`).
+- `packages/fff-python` - Python package sources.
+- `packages/fff-bin-*` - Platform binary package layouts (`@ff-labs/fff-bin-*` on npm; consumed, not republished here).
+- `lua/` - Neovim plugin code. `doc/` - vimdoc.
+
+---
+
+## Contributing
+
+Bug reports and pull requests welcome at [GroepOnline/pi-tools](https://github.com/GroepOnline/pi-tools). Agentic coding tools are welcome, but human review is mandatory. Keep code in line with the rules in [`AGENTS.md`](./AGENTS.md). Release process: [`docs/RELEASE.md`](./docs/RELEASE.md).
 
 ## License
 
-This repository is distributed under the [MIT License](./LICENSE). Third-party notices and licensing obligations for carried components remain in their applicable source files and distribution metadata.
+[MIT](./LICENSE).
 
-## References
+## FAQ
 
-[1]: https://pi.dev/packages/@groeponline/pi-tools "@groeponline/pi-tools on pi.dev"
-[2]: https://github.com/GroepOnline/pi-tools "GroepOnline/pi-tools repository"
+### What does FFF stand for?
 
-[1] [2]
+There is intentionally no single canonical definition. Pick your favourite:
+
+- **F**ast **F**ile **F**inder
+- **F**uzzy **F**ile **F**inder
+- will search **F**iles **F**or **F**ood
+
+The brand hex is `#F87216`, not `#FFF`. Logo variants: [orange](./assets/logo-orange.png) · [dark](./assets/logo-dark.png) · [light](./assets/logo-light.png).
