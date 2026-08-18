@@ -1,1 +1,5 @@
 blank_issues_enabled: false
+contact_links:
+  - name: Discussion / question
+    url: https://github.com/GroepOnline/pi-tools/issues
+    about: For usage questions, design discussion, or anything that's not a bug or feature request.

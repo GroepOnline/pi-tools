@@ -636,8 +636,7 @@ jobs:
             - `fff-mcp-{target}` - MCP server binary
 
             ## Python Package
-            - `python/*.whl` / `python/*.tar.gz` - Python wheels and sdist
-            - Install from PyPI: `pip install fff-search` (when published)
+            - `python/*.whl` / `python/*.tar.gz` - Python wheels and sdist attached to this GitHub Release
 
             Update mcp via:
             ```sh

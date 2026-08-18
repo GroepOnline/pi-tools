@@ -2,7 +2,7 @@ import type { FileFinderApi, InitOptions, Result } from "@groeponline/fff-node";
 
 export const SCAN_TIMEOUT_MS = 15_000;
 
-/** Resolves the Node or Bun SDK at runtime. */
+/** pi can be run either under node or sdk, we resolve correct SDK version at runtime */
 export type FileFinderStatic = {
   create(options: InitOptions): Result<FileFinderApi>;
 };
@@ -22,15 +22,20 @@ function detectRuntime(): "bun" | "node" {
 export function loadSdk(): Promise<{ FileFinder: FileFinderStatic }> {
   if (sdkPromise) return sdkPromise;
 
-  // Preserve the first native-module import across Pi reloads to avoid a Bun reload hang.
+  // Pi reloads extension modules with jiti moduleCache:false, so this module
+  // is re-executed on every /reload. Re-importing the fff-bun module graph
+  // (which top-level awaits a `type: "file"` import of the native .so) hangs
+  // forever inside the Bun-compiled pi binary. Cache the first import on
+  // globalThis so reloads reuse the resolved module instead of re-importing.
   const g = globalThis as Record<string, unknown>;
   if (g.__fffSdkPromiseGlobal) {
     sdkPromise = g.__fffSdkPromiseGlobal as Promise<{ FileFinder: FileFinderStatic }>;
     return sdkPromise;
   }
 
-  // Prefer Node unless the process identifies itself as Bun.
-  const pkg = detectRuntime() === "bun" ? "@groeponline/fff-bun" : "@groeponline/fff-node";
+  // default to node as it seems like default option
+  const pkg =
+    detectRuntime() === "bun" ? "@groeponline/fff-bun" : "@groeponline/fff-node";
   const p = import(pkg) as Promise<{ FileFinder: FileFinderStatic }>;
   sdkPromise = p;
   (globalThis as Record<string, unknown>).__fffSdkPromiseGlobal = p;
