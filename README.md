@@ -2,25 +2,25 @@
 
 # GroepOnline FFF
 
-**GroepOnline FFF** is the local search foundation behind [`@groeponline/pi-fff`](https://pi.dev/packages/@groeponline/pi-fff). It gives Pi agents fast, context-aware file discovery and content search without sending project files to a separate search service.
+**GroepOnline FFF** is the local search foundation behind [`@groeponline/pi-tools`](https://pi.dev/packages/@groeponline/pi-tools). It gives Pi agents fast, context-aware file discovery and content search without sending project files to a separate search service.
 
-The repository contains the complete implementation used by the extension: the Rust search engine, native bindings, TypeScript packages, the Pi integration, tests, and release tooling. The primary supported product is **`@groeponline/pi-fff`**.
+The repository contains the complete implementation used by the extension: the Rust search engine, native bindings, TypeScript packages, the Pi integration, tests, and release tooling. The primary supported product is **`@groeponline/pi-tools`**.
 
 ## Start with Pi
 
 Install the extension globally for your Pi environment:
 
 ```bash
-pi install npm:@groeponline/pi-fff
+pi install npm:@groeponline/pi-tools
 ```
 
 Use a project-local installation when the search behaviour should be scoped to one workspace:
 
 ```bash
-pi install -l npm:@groeponline/pi-fff
+pi install -l npm:@groeponline/pi-tools
 ```
 
-> The package page, version history, and installation command are published at [pi.dev/packages/@groeponline/pi-fff](https://pi.dev/packages/@groeponline/pi-fff).
+> The package page, version history, and installation command are published at [pi.dev/packages/@groeponline/pi-tools](https://pi.dev/packages/@groeponline/pi-tools).
 
 ## What the extension provides
 
@@ -56,11 +56,11 @@ The precedence order is **flag → environment variable → configuration file �
 
 ## Configure persistent defaults
 
-Create `~/.pi/agent/pi-fff.json` to define defaults for all local Pi sessions. The directory respects `PI_CODING_AGENT_DIR` when it is set.
+Create `~/.pi/agent/pi-tools.json` to define defaults for all local Pi sessions. The directory respects `PI_CODING_AGENT_DIR` when it is set.
 
 ```json
 {
-  "$schema": "https://raw.githubusercontent.com/GroepOnline/pi-tools/main/packages/pi-fff/pi-fff.schema.json",
+  "$schema": "https://raw.githubusercontent.com/GroepOnline/pi-tools/main/packages/pi-tools/pi-tools.schema.json",
   "mode": "tools-and-ui",
   "enableFsRootScanning": false,
   "enableHomeDirScanning": true
@@ -89,14 +89,14 @@ When Pi starts from a home directory, indexing can cover a large tree and consum
 
 | Path | Responsibility |
 | --- | --- |
-| `packages/pi-fff/` | Published Pi extension and its configuration schema. |
+| `packages/pi-tools/` | Published Pi extension and its configuration schema. |
 | `packages/fff-node/` and `packages/fff-bun/` | TypeScript bindings used by the extension and custom integrations. |
 | `crates/fff-core/` | Indexing, ranking, watcher, and local persistence primitives. |
 | `crates/fff-grep/` | Native content-search implementation. |
 | `crates/fff-c/` | C ABI used by language bindings. |
 | `crates/fff-mcp/` | MCP server implementation. |
 | `crates/fff-nvim/`, `lua/`, and `doc/` | Neovim integration. |
-| `tests/` and `packages/pi-fff/test/` | Engine and extension tests. |
+| `tests/` and `packages/pi-tools/test/` | Engine and extension tests. |
 
 ## Develop and validate
 
@@ -113,7 +113,7 @@ For the Pi extension specifically:
 ```bash
 cd packages
 npm run check:ci
-bun test pi-fff/test/
+bun test pi-tools/test/
 ```
 
 See [`AGENTS.md`](./AGENTS.md) for maintainer conventions, compatibility requirements, and release boundaries.
@@ -128,7 +128,7 @@ This repository is distributed under the [MIT License](./LICENSE). Third-party n
 
 ## References
 
-[1]: https://pi.dev/packages/@groeponline/pi-fff "@groeponline/pi-fff on pi.dev"
+[1]: https://pi.dev/packages/@groeponline/pi-tools "@groeponline/pi-tools on pi.dev"
 [2]: https://github.com/GroepOnline/pi-tools "GroepOnline/pi-tools repository"
 
 [1] [2]

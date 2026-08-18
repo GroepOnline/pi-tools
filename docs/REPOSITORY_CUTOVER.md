@@ -34,7 +34,7 @@ The release workflow and Makefile are already prepared to use the GroepOnline re
 | 4 | Initialise the prepared source tree as a new Git repository with a single root commit. | `git log --all --oneline` shows only the new root history; `git remote -v` has only the new `origin`. |
 | 5 | Push `main`, configure default branch protection, enable issues, and add the existing issue templates. | A new issue can be created through GroepOnline templates. |
 | 6 | Publish and verify the first GroepOnline stable GitHub release and its checksums. | Downloaded MCP assets pass SHA-256 checks on supported targets. |
-| 7 | Update the installer and Homebrew formula to that release, then publish a new `@groeponline/pi-fff` package version. | npm package metadata and the Pi package page point to the new independent repository. |
+| 7 | Update the installer and Homebrew formula to that release, then publish a new `@groeponline/pi-tools` package version. | npm package metadata and the Pi package page point to the new independent repository. |
 | 8 | Archive or make private the legacy fork only after a rollback window and package verification. | Public product links resolve to the standalone repository. |
 
 ## Cutover acceptance criteria
@@ -45,7 +45,7 @@ The migration is complete only when the following conditions are all true:
 2. The project README, package metadata, issue templates, crash messages, release workflow, and package page point to GroepOnline.
 3. The MIT licence and third-party notice remain present.
 4. The first GroepOnline release supplies all installer and formula assets referenced by version and checksum.
-5. `@groeponline/pi-fff` installs successfully in a fresh Pi environment and its package page links back to the standalone repository.
+5. `@groeponline/pi-tools` installs successfully in a fresh Pi environment and its package page links back to the standalone repository.
 
 ## Prepared changes in this branch
 
