@@ -156,7 +156,7 @@ make build-c-lib
 # or: cargo build --release -p fff-c --features zlob
 ```
 
-The `zlob` feature (requires the [Zig](https://ziglang.org) toolchain) switches glob matching and filesystem traversal to [zlob](https://github.com/dmtrKovalenko/zlob)'s native parallel walker. The output is a `cdylib` (`libfff_c.so` / `.dylib` / `fff_c.dll`); the header lives at [`crates/fff-c/include/fff.h`](./crates/fff-c/include/fff.h). Source: [`crates/fff-c/`](./crates/fff-c/).
+The `zlob` feature (requires the [Zig](https://ziglang.org) toolchain) switches glob matching and filesystem traversal to zlob's native parallel walker. The output is a `cdylib` (`libfff_c.so` / `.dylib` / `fff_c.dll`); the header lives at [`crates/fff-c/include/fff.h`](./crates/fff-c/include/fff.h). Source: [`crates/fff-c/`](./crates/fff-c/).
 
 ### Python bindings
 
