@@ -1,7 +1,7 @@
 {
   "name": "@groeponline/pi-fff",
   "public": true,
-  "version": "0.6.0",
+  "version": "0.10.5",
   "description": "Fast local file and content search for Pi agents",
   "type": "module",
   "license": "MIT",
