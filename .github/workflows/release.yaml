@@ -667,7 +667,8 @@ jobs:
     name: Publish Python wheels to PyPI
     needs: [build-python, build-python-sdist]
     runs-on: ubuntu-latest
-    if: (github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))) || github.event_name == 'workflow_dispatch'
+    # Enable only after the GroepOnline PyPI trusted publisher is configured.
+    if: vars.GROEPONLINE_PUBLISH_PYPI == 'true' && ((github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))) || github.event_name == 'workflow_dispatch')
     environment:
       name: pypi
       url: https://pypi.org/p/fff-search
@@ -692,7 +693,8 @@ jobs:
     name: Publish Rust crates
     needs: [build-nvim, build-c, build-mcp]
     runs-on: ubuntu-latest
-    if: (github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))) || github.event_name == 'workflow_dispatch'
+    # Enable only after the GroepOnline crates.io trusted publisher is configured.
+    if: vars.GROEPONLINE_PUBLISH_CRATES == 'true' && ((github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))) || github.event_name == 'workflow_dispatch')
     permissions:
       contents: read
       id-token: write
