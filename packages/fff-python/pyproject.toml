@@ -15,8 +15,8 @@ dev = [
 ]
 
 [project.urls]
-Repository = "https://github.com/dmtrKovalenko/fff"
-Issues = "https://github.com/dmtrKovalenko/fff/issues"
+Repository = "https://github.com/GroepOnline/pi-tools"
+Issues = "https://github.com/GroepOnline/pi-tools/issues"
 
 [build-system]
 requires = ["maturin>=1.0,<2.0"]

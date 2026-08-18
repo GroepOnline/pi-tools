@@ -174,7 +174,7 @@ If prebuilt binaries aren't available for your platform:
 
 ```bash
 # Clone the repository
-git clone https://github.com/dmtrKovalenko/fff
+git clone https://github.com/GroepOnline/pi-tools
 cd fff
 
 # Build the C library

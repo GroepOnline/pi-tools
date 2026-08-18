@@ -1288,7 +1288,7 @@ mod tests {
 
     #[test]
     fn test_grep_reversed_braces_does_not_panic() {
-        // BUG PINING https://github.com/dmtrKovalenko/fff/issues/479
+        // BUG PINING https://github.com/GroepOnline/pi-tools/issues/479
         // we should support any combination of different brackets without crashes
         for query in [
             "}{",

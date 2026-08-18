@@ -2,12 +2,12 @@
 # Maintained in-repo; auto-bumped by .github/workflows/release.yaml on stable releases.
 class FffMcp < Formula
   desc "Fast file search toolkit for AI agents (MCP server)"
-  homepage "https://github.com/dmtrKovalenko/fff"
+  homepage "https://github.com/GroepOnline/pi-tools"
   license "MIT"
   version "0.10.5"
 
-  LIVECHECK_REPO = "dmtrKovalenko/fff".freeze
-  RELEASE_BASE = "https://github.com/dmtrKovalenko/fff/releases/download".freeze
+  LIVECHECK_REPO = "GroepOnline/pi-tools".freeze
+  RELEASE_BASE = "https://github.com/GroepOnline/pi-tools/releases/download".freeze
 
   on_macos do
     on_arm do

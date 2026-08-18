@@ -152,7 +152,7 @@ jobs:
         shell: bash
         run: make test-node
 
-  # Regression for https://github.com/dmtrKovalenko/fff/issues/480: build &
+  # Regression for https://github.com/GroepOnline/pi-tools/issues/480: build &
   # run @groeponline/fff-node end-to-end on real Alpine Linux (musl). Forces
   # findBinary() through the npm-package resolver so detectLinuxLibc()
   # actually runs.

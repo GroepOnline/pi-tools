@@ -18,7 +18,7 @@ use fff_search::grep::{GrepMode, GrepSearchOptions, parse_grep_query};
 use fff_search::{FilePickerOptions, SharedFilePicker, SharedFrecency};
 
 const REPO_POOL: &[(&str, &str)] = &[
-    ("dmtrKovalenko/fff", "fff"),
+    ("GroepOnline/pi-tools", "fff"),
     ("BurntSushi/ripgrep", "ripgrep"),
     ("sharkdp/fd", "fd"),
     ("ogham/exa", "exa"),

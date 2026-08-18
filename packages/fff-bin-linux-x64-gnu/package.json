@@ -12,7 +12,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/dmtrKovalenko/fff.git",
+    "url": "git+https://github.com/GroepOnline/pi-tools.git",
     "directory": "packages/fff-bin-linux-x64-gnu"
   },
   "libc": ["glibc"]

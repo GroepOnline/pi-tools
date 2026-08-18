@@ -2,9 +2,9 @@
 set -eo pipefail
 
 # FFF MCP Server installer
-# Usage: curl -fsSL https://raw.githubusercontent.com/dmtrKovalenko/fff/main/install-mcp.sh | bash
+# Usage: curl -fsSL https://raw.githubusercontent.com/GroepOnline/pi-tools/main/install-mcp.sh | bash
 
-REPO="dmtrKovalenko/fff"
+REPO="GroepOnline/pi-tools"
 BINARY_NAME="fff-mcp"
 INSTALL_DIR="${FFF_MCP_INSTALL_DIR:-$HOME/.local/bin}"
 

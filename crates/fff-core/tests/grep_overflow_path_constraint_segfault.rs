@@ -5,7 +5,7 @@ use fff_search::grep::{GrepMode, GrepSearchOptions};
 use fff_search::{AiGrepConfig, FFFQuery, FilePickerOptions};
 use tempfile::TempDir;
 
-// bug pinning https://github.com/dmtrKovalenko/fff/issues/618
+// bug pinning https://github.com/GroepOnline/pi-tools/issues/618
 #[test]
 fn grep_path_constraint_on_overflow_file_does_not_segfault() {
     let tmp = TempDir::new().expect("tempdir");
