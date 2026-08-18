@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { piDataDir } from "./paths";
 
 export const CONFIG_FILE_NAME = "pi-tools.json";
+const LEGACY_CONFIG_FILE_NAME = "pi-fff.json";
 export const VALID_MODES = ["tools-and-ui", "tools-only", "override"] as const;
 
 export type FffMode = (typeof VALID_MODES)[number];
@@ -26,16 +27,27 @@ const CONFIG_KEYS = new Set<keyof FffConfig>([
 ]);
 
 export function loadConfig(agentDir = piDataDir()): FffConfig {
-  const configPath = join(agentDir, CONFIG_FILE_NAME);
+  let configPath = join(agentDir, CONFIG_FILE_NAME);
+  const legacyConfigPath = join(agentDir, LEGACY_CONFIG_FILE_NAME);
   let contents: string;
 
   try {
     contents = readFileSync(configPath, "utf8");
   } catch (error: unknown) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") return {};
-    throw new Error(
-      `Could not read pi-tools config at ${configPath}: ${errorMessage(error)}`,
-    );
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+      throw new Error(
+        `Could not read pi-tools config at ${configPath}: ${errorMessage(error)}`,
+      );
+    }
+    try {
+      contents = readFileSync(legacyConfigPath, "utf8");
+      configPath = legacyConfigPath;
+    } catch (legacyError: unknown) {
+      if ((legacyError as NodeJS.ErrnoException).code === "ENOENT") return {};
+      throw new Error(
+        `Could not read pi-fff config at ${legacyConfigPath}: ${errorMessage(legacyError)}`,
+      );
+    }
   }
 
   let parsed: unknown;
