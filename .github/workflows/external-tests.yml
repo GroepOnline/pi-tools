@@ -1,0 +1,234 @@
+name: e2e Tests
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'doc/**'
+  pull_request:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'doc/**'
+
+env:
+  CARGO_TERM_COLOR: always
+  MACOSX_DEPLOYMENT_TARGET: "13"
+  # Force Node 24 for all JS-based actions to avoid the libuv
+  # process_title assertion crash on Windows (known Node 20 bug).
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  # e2e only needs a working binary, so skip fat LTO (same settings as the `ci`
+  # profile releases ship). Overriding release keeps artifacts in target/release.
+  CARGO_PROFILE_RELEASE_LTO: thin
+  CARGO_PROFILE_RELEASE_CODEGEN_UNITS: 16
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' && !startsWith(github.ref, 'refs/tags/') }}
+
+jobs:
+  lua-tests:
+    name: e2e (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    # e2e tests could be flaky on CI so we do not block release creation if they failed
+    continue-on-error: ${{ github.ref == 'refs/heads/main' && github.event_name == 'push' }}
+    # alpine-musl installs rust via apk and has no sccache, so keep this scoped.
+    env:
+      SCCACHE_GHA_ENABLED: "true"
+      RUSTC_WRAPPER: sccache
+      # fff-search alone exceeds the 600s default on windows, and the server
+      # sees no new requests while it compiles, so it would idle out mid-unit.
+      SCCACHE_IDLE_TIMEOUT: "0"
+    strategy:
+      fail-fast: false
+      matrix:
+        # Linux-only on push/PR; full 3-OS matrix only on release tags.
+        os: ${{ startsWith(github.ref, 'refs/tags/v') && fromJSON('["ubuntu-latest", "macos-latest", "windows-latest"]') || fromJSON('["ubuntu-latest"]') }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: oven-sh/setup-bun@v2
+      - uses: actions/setup-node@v6
+      - name: Install Zig
+        uses: mlugg/setup-zig@v2
+        with:
+          version: 0.16.0
+
+      - name: Install Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1.15.4
+        with:
+          cache: true
+          cache-on-failure: false
+          cache-key: "v2-lua-e2e"
+          rustflags: ""
+
+      - name: Setup sccache
+        uses: mozilla-actions/sccache-action@v0.0.11
+        with:
+          version: v0.17.0
+
+      - name: Build Rust binary
+        shell: bash
+        run: make build-e2e
+
+      - name: sccache stats
+        if: always()
+        shell: bash
+        run: sccache --show-stats
+
+      - name: Verify Windows DLL has no unexpected dependencies
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        run: |
+          # Find dumpbin via vswhere (always available on GitHub Actions Windows runners)
+          $vsPath = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property installationPath
+          $dumpbin = Get-ChildItem "$vsPath" -Recurse -Filter "dumpbin.exe" | Select-Object -First 1
+          if (-not $dumpbin) { Write-Error "dumpbin.exe not found"; exit 1 }
+
+          $deps = & $dumpbin.FullName /DEPENDENTS target\release\fff_nvim.dll | Out-String
+          Write-Host $deps
+          # zlob must be statically linked - fail if zlob.dll appears as a dependency
+          if ($deps -match 'zlob\.dll') {
+            Write-Error "fff_nvim.dll has unexpected dynamic dependency on zlob.dll - zlob should be statically linked"
+            exit 1
+          }
+
+      - name: Install Neovim
+        uses: rhysd/action-setup-vim@v1
+        with:
+          neovim: true
+          version: v0.10.4
+
+      - name: Clone plenary.nvim
+        shell: bash
+        run: git clone --depth 1 https://github.com/nvim-lua/plenary.nvim ../plenary.nvim
+
+      - name: Run Lua tests
+        shell: bash
+        run: make test-lua
+
+      - name: Dump fff trace log on failure
+        if: failure()
+        shell: bash
+        run: |
+          # init_tracing writes session files named fff-test+<ts>+<pid>.log
+          found=0
+          for f in fff-test*.log; do
+            [ -f "$f" ] || continue
+            found=1
+            echo "=== $f ==="
+            cat "$f"
+          done
+          if [ "$found" = 0 ]; then
+            echo "(no log file produced)"
+          fi
+
+      - name: Run version resolution tests
+        shell: bash
+        run: make test-version
+
+      - name: Run non windows tests
+        shell: bash
+        if: ${{ matrix.os != 'windows-latest' }}
+        run: |
+          make test-bun
+          make test-c-api
+
+      - name: Verify bun --compile 
+        shell: bash
+        run: make test-bun-compile
+
+      - name: Install Node.js
+        if: ${{ matrix.os != 'ubuntu-latest' }}
+        uses: actions/setup-node@v6
+        with:
+          node-version: "25"
+
+      - name: Install node dependencies
+        shell: bash
+        run: cd packages && npm ci
+
+      - name: Run node tests
+        shell: bash
+        run: make test-node
+
+  # Regression for https://github.com/dmtrKovalenko/fff/issues/480: build &
+  # run @groeponline/fff-node end-to-end on real Alpine Linux (musl). Forces
+  # findBinary() through the npm-package resolver so detectLinuxLibc()
+  # actually runs.
+  alpine-musl:
+    name: e2e (alpine-musl)
+    runs-on: ubuntu-latest
+    container: node:22-alpine
+    continue-on-error: ${{ github.ref == 'refs/heads/main' && github.event_name == 'push' }}
+    defaults:
+      run:
+        shell: sh
+    steps:
+      - name: Install build deps
+        run: apk add --no-cache git rust cargo musl-dev
+
+      - uses: actions/checkout@v5
+
+      # libgit2 refuses repos owned by a different user; checkout in a
+      # container can land at a uid mismatch, so opt every dir in.
+      - name: Mark workspace safe for git
+        run: git config --global --add safe.directory '*'
+
+      - name: Sanity check libc is musl
+        run: |
+          if ! ldd --version 2>&1 | grep -qi musl; then
+            echo "FAIL: container is not running musl libc"
+            exit 1
+          fi
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: alpine-musl-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            alpine-musl-cargo-
+
+      - name: Build libfff_c (musl)
+        run: cargo build --release -p fff-c
+
+      - name: Install workspace npm deps
+        working-directory: packages
+        run: npm ci
+
+      # Upstream @yuuang/ffi-rs-linux-x64-musl ships with libc:"glibc" in
+      # its package.json (a publishing bug in ffi-rs), so npm filters it
+      # out. Force-install it so the FFI runtime is present on Alpine.
+      - name: Install ffi-rs musl runtime
+        working-directory: packages
+        run: |
+          FFI_RS_VERSION=$(node -p "require('ffi-rs/package.json').version")
+          npm install --no-package-lock --no-save --force \
+            "@yuuang/ffi-rs-linux-x64-musl@${FFI_RS_VERSION}"
+
+      # Stage the freshly built libfff_c.so as the platform npm package
+      # so findBinary() resolves through the @ff-labs/fff-bin-* path —
+      # this is what exercises detectLinuxLibc().
+      - name: Stage musl bin package
+        run: |
+          PKG_DIR=packages/node_modules/@ff-labs/fff-bin-linux-x64-musl
+          mkdir -p "$PKG_DIR"
+          cp target/release/libfff_c.so "$PKG_DIR/libfff_c.so"
+          cat >"$PKG_DIR/package.json" <<'JSON'
+          { "name": "@ff-labs/fff-bin-linux-x64-musl", "version": "0.0.0" }
+          JSON
+
+      # fff-node builds with bun; the npm `bun` package ships musl binaries
+      - name: Install bun
+        run: npm install -g bun
+
+      - name: Build fff-node
+        working-directory: packages/fff-node
+        run: npm run build
+
+      - name: Run fff-node e2e suite
+        working-directory: packages/fff-node
+        run: node test/e2e.mjs

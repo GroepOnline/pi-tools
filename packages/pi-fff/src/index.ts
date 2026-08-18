@@ -1,0 +1,1240 @@
+import nodePath from "node:path";
+import type {
+  ExtensionAPI,
+  ExtensionContext,
+  ToolDefinition,
+} from "@earendil-works/pi-coding-agent";
+import {
+  type AutocompleteItem,
+  type AutocompleteProvider,
+  Text,
+} from "@earendil-works/pi-tui";
+import type {
+  FileFinderApi,
+  GrepCursor,
+  GrepMode,
+  GrepResult,
+  MixedItem,
+  SearchResult,
+} from "@groeponline/fff-node";
+import { Type, type TSchema } from "@sinclair/typebox";
+import { AuxFinderPool, routePathConstraint } from "./aux-finders";
+import { type FffMode, loadConfig, VALID_MODES } from "./config";
+import { FilePickerFactory } from "./file-picker";
+import { isHomeDir, resolveDbPaths } from "./paths";
+import { buildQuery } from "./query";
+
+export { SCAN_TIMEOUT_MS } from "./sdk";
+
+const DEFAULT_GREP_LIMIT = 20;
+const DEFAULT_FIND_LIMIT = 30;
+const GREP_PAGE_SIZE_MAX = 50;
+const GREP_CONTEXT_MAX = 20;
+const GREP_MAX_LINE_LENGTH = 500;
+const MENTION_MAX_RESULTS = 20;
+
+// Bound indexed grep work so a stalled search cannot consume the session.
+const GREP_TIME_BUDGET_MS = 10_000;
+
+const HOME_SCAN_STATUS_KEY = "fff";
+const HOME_SCAN_POLL_MS = 1_000;
+const HOME_SCAN_DISABLE_HINT =
+  "You can prevent home dir indexing with --fff-enable-home-scan=false, FFF_ENABLE_HOME_SCAN=0, or enableHomeDirScanning in pi-fff.json.";
+
+interface ToolNames {
+  grep: string;
+  find: string;
+  multiGrep: string;
+}
+
+const FFF_TOOL_NAMES: ToolNames = {
+  grep: "ffgrep",
+  find: "fffind",
+  multiGrep: "fff-multi-grep",
+};
+const OVERRIDE_TOOL_NAMES: ToolNames = {
+  grep: "grep",
+  find: "find",
+  multiGrep: "multi_grep",
+};
+
+function resolveToolNames(mode: FffMode): ToolNames {
+  return mode === "override" ? OVERRIDE_TOOL_NAMES : FFF_TOOL_NAMES;
+}
+
+// Stores opaque cursors for search pagination.
+const cursorCache = new Map<string, GrepCursor>();
+let cursorCounter = 0;
+
+function storeCursor(cursor: GrepCursor): string {
+  const id = `fff_c${++cursorCounter}`;
+  cursorCache.set(id, cursor);
+  if (cursorCache.size > 200) {
+    const first = cursorCache.keys().next().value;
+    if (first) cursorCache.delete(first);
+  }
+  return id;
+}
+
+function getCursor(id: string): GrepCursor | undefined {
+  return cursorCache.get(id);
+}
+
+// Find cursors retain the next page and the query context that produced it.
+interface FindCursor {
+  query: string;
+  pattern: string;
+  pageSize: number;
+  nextPageIndex: number;
+  auxRoot?: string;
+}
+
+const findCursorCache = new Map<string, FindCursor>();
+let findCursorCounter = 0;
+
+function storeFindCursor(cursor: FindCursor): string {
+  const id = `${++findCursorCounter}`;
+  findCursorCache.set(id, cursor);
+  if (findCursorCache.size > 200) {
+    const first = findCursorCache.keys().next().value;
+    if (first) findCursorCache.delete(first);
+  }
+  return id;
+}
+
+function getFindCursor(id: string): FindCursor | undefined {
+  return findCursorCache.get(id);
+}
+
+function truncateLine(line: string, max = GREP_MAX_LINE_LENGTH): string {
+  const trimmed = line.trim();
+  return trimmed.length <= max ? trimmed : `${trimmed.slice(0, max)}...`;
+}
+
+// Bound context to protect the agent's output budget.
+function clampContext(context: number | undefined): number {
+  if (!context || context < 0) return 0;
+  return Math.min(Math.floor(context), GREP_CONTEXT_MAX);
+}
+
+const HOT_FRECENCY = 25;
+const WARM_FRECENCY = 20;
+
+// Prefer actionable Git state over historical frecency in compact output.
+export function fffFileAnnotation(item: {
+  gitStatus?: string;
+  totalFrecencyScore?: number;
+  accessFrecencyScore?: number;
+}): string {
+  const git = item.gitStatus;
+  if (git && git !== "clean" && git !== "unknown" && git !== "") {
+    return `  [${git} in git]`;
+  }
+
+  const frecency = item.totalFrecencyScore ?? item.accessFrecencyScore ?? 0;
+  if (frecency >= HOT_FRECENCY) return "  [VERY often touched file]";
+  if (frecency >= WARM_FRECENCY) return "  [often touched file]";
+
+  return "";
+}
+
+// Preserve native ordering; re-sorting would discard engine ranking.
+function formatGrepOutput(result: GrepResult): string {
+  if (result.items.length === 0) return "No matches found";
+
+  const lines: string[] = [];
+  let currentFile = "";
+
+  for (const match of result.items) {
+    if (match.relativePath !== currentFile) {
+      if (lines.length > 0) lines.push("");
+      currentFile = match.relativePath;
+      lines.push(`${currentFile}${fffFileAnnotation(match)}`);
+    }
+
+    match.contextBefore?.forEach((line: string, i: number) => {
+      const lineNum = match.lineNumber - match.contextBefore!.length + i;
+      lines.push(` ${lineNum}- ${truncateLine(line)}`);
+    });
+
+    lines.push(` ${match.lineNumber}: ${truncateLine(match.lineContent)}`);
+
+    match.contextAfter?.forEach((line: string, i: number) => {
+      const lineNum = match.lineNumber + 1 + i;
+      lines.push(` ${lineNum}- ${truncateLine(line)}`);
+    });
+  }
+
+  return lines.join("\n");
+}
+
+// Limit weak fuzzy matches so scattered results do not overwhelm the agent.
+const FIND_WEAK_SAMPLE_SIZE = 5;
+
+function weakScoreThreshold(pattern: string): number {
+  const perfect = pattern.length * 12;
+  return Math.floor((perfect * 50) / 100);
+}
+
+interface FormattedFind {
+  output: string;
+  weak: boolean;
+  shownCount: number;
+}
+
+function formatFindOutput(
+  result: SearchResult,
+  limit: number,
+  pattern: string,
+): FormattedFind {
+  if (result.items.length === 0) {
+    return {
+      output: "No files found matching pattern",
+      weak: false,
+      shownCount: 0,
+    };
+  }
+
+  const reordered = result.items.map((item) => ({ item }));
+
+  // Evaluate the engine's top-ranked score before formatting results.
+  const topScore = result.scores[0]?.total ?? 0;
+  const weak = topScore < weakScoreThreshold(pattern);
+  const effective = weak ? Math.min(FIND_WEAK_SAMPLE_SIZE, limit) : limit;
+  const shown = reordered.slice(0, effective);
+
+  return {
+    output: shown
+      .map((p) => `${p.item.relativePath}${fffFileAnnotation(p.item)}`)
+      .join("\n"),
+    weak,
+    shownCount: shown.length,
+  };
+}
+
+function extractAtPrefix(textBeforeCursor: string): string | null {
+  const match = textBeforeCursor.match(/(?:^|[ \t])(@(?:"[^"]*|[^\s]*))$/);
+  return match?.[1] ?? null;
+}
+
+function buildAtCompletionValue(path: string): string {
+  return path.includes(" ") ? `@"${path}"` : `@${path}`;
+}
+
+function createFffMentionProvider(
+  getItems: (query: string, signal: AbortSignal) => Promise<AutocompleteItem[]>,
+): AutocompleteProvider {
+  return {
+    async getSuggestions(lines, cursorLine, cursorCol, options) {
+      const currentLine = lines[cursorLine] || "";
+      const prefix = extractAtPrefix(currentLine.slice(0, cursorCol));
+      if (!prefix || options.signal.aborted) return null;
+
+      const query = prefix.startsWith('@"') ? prefix.slice(2) : prefix.slice(1);
+      const items = await getItems(query, options.signal);
+      return options.signal.aborted || items.length === 0 ? null : { items, prefix };
+    },
+    applyCompletion(_lines, cursorLine, cursorCol, item, prefix) {
+      const currentLine = _lines[cursorLine] || "";
+      const before = currentLine.slice(0, cursorCol - prefix.length);
+      const after = currentLine.slice(cursorCol);
+      const newLine = before + item.value + after;
+      const newCursorCol = cursorCol - prefix.length + item.value.length;
+      return {
+        lines: [..._lines.slice(0, cursorLine), newLine, ..._lines.slice(cursorLine + 1)],
+        cursorLine,
+        cursorCol: newCursorCol,
+      };
+    },
+  };
+}
+
+export default function fffExtension(pi: ExtensionAPI) {
+  let mainFinder: FileFinderApi | null = null;
+  let finderCwd: string | null = null;
+  // Serialize creation because native database locks are process-wide.
+  let finderPromise: Promise<FileFinderApi> | null = null;
+  let activeCwd = process.cwd();
+
+  const config = loadConfig();
+
+  // Resolve startup options with flag > environment > file > fallback.
+  function getConfigValue<T>(
+    flagName: string,
+    envName: string,
+    fileValue: T | undefined,
+    fallback: T,
+    parse: (value: unknown) => T | undefined = (value) => value as T,
+  ): T {
+    const flagValue = pi.getFlag(flagName);
+    if (flagValue !== undefined) {
+      const value = parse(flagValue);
+      if (value !== undefined) return value;
+    }
+
+    const envValue = process.env[envName];
+    if (envValue !== undefined) {
+      const value = parse(envValue);
+      if (value !== undefined) return value;
+    }
+
+    return fileValue ?? fallback;
+  }
+
+  function parseBoolean(value: unknown): boolean | undefined {
+    if (typeof value === "boolean") return value;
+    if (value === "1" || value === "true") return true;
+    if (value === "0" || value === "false") return false;
+    return undefined;
+  }
+
+  function parseMode(value: unknown): FffMode | undefined {
+    return typeof value === "string" && VALID_MODES.includes(value as FffMode)
+      ? (value as FffMode)
+      : undefined;
+  }
+
+  let currentMode: FffMode = "tools-and-ui";
+  let toolNames = resolveToolNames(currentMode);
+  let resolvedDbPaths: ReturnType<typeof resolveDbPaths>;
+  let enableFsRootScanning = false;
+  let enableHomeDirScanning = true;
+
+  function setMode(mode: FffMode): void {
+    currentMode = mode;
+    toolNames = resolveToolNames(mode);
+  }
+
+  function resolveStartupConfig(): void {
+    setMode(
+      getConfigValue("fff-mode", "PI_FFF_MODE", config.mode, "tools-and-ui", parseMode),
+    );
+    resolvedDbPaths = resolveDbPaths({
+      frecency: getConfigValue(
+        "fff-frecency-db",
+        "FFF_FRECENCY_DB",
+        config.frecencyDbPath,
+        undefined,
+      ),
+      history: getConfigValue(
+        "fff-history-db",
+        "FFF_HISTORY_DB",
+        config.historyDbPath,
+        undefined,
+      ),
+    });
+
+    // Require an explicit opt-in for filesystem-root scans.
+    enableFsRootScanning = getConfigValue(
+      "fff-enable-root-scan",
+      "FFF_ENABLE_ROOT_SCAN",
+      config.enableFsRootScanning,
+      false,
+      parseBoolean,
+    );
+    // Let users with large home trees disable home-directory scanning.
+    enableHomeDirScanning = getConfigValue(
+      "fff-enable-home-scan",
+      "FFF_ENABLE_HOME_SCAN",
+      config.enableHomeDirScanning,
+      true,
+      parseBoolean,
+    );
+  }
+
+  function getMode(): FffMode {
+    return currentMode;
+  }
+
+  function shouldEnableMentions(): boolean {
+    return currentMode !== "tools-only";
+  }
+
+  // TUI status is available only inside an extension event.
+  let uiCtx: {
+    ui: {
+      notify: (message: string, type?: "info" | "warning" | "error") => void;
+      setStatus?: (key: string, text: string | undefined) => void;
+    };
+  } | null = null;
+  let homeScanTimer: ReturnType<typeof setInterval> | null = null;
+
+  function warnHomeDirScan(root: string): void {
+    uiCtx?.ui.notify(
+      `(fff): Your cwd (${root}) is too large. Indexing will take additional time and resources.\n${HOME_SCAN_DISABLE_HINT}`,
+      "warning",
+    );
+  }
+
+  let pickers: FilePickerFactory | null = null;
+  let auxPool: AuxFinderPool | null = null;
+
+  function initializeFinderFactories(): void {
+    if (pickers) return;
+
+    pickers = new FilePickerFactory({
+      frecencyDbPath: resolvedDbPaths.frecency,
+      historyDbPath: resolvedDbPaths.history,
+      onDbFailure: (error) =>
+        uiCtx?.ui.notify(
+          `(fff): Failed to open frecency/history database (${error}). Continuing without frecency persistence.`,
+          "error",
+        ),
+    });
+    auxPool = new AuxFinderPool({
+      enableFsRootScanning,
+      enableHomeDirScanning,
+      onHomeDirScan: warnHomeDirScan,
+      pickers,
+    });
+  }
+
+  // Recreate the primary finder only when the working directory changes.
+  function ensureFinder(cwd: string): Promise<FileFinderApi> {
+    if (mainFinder && !mainFinder.isDestroyed && finderCwd === cwd)
+      return Promise.resolve(mainFinder);
+
+    if (finderPromise) return finderPromise;
+
+    finderPromise = (async () => {
+      if (mainFinder && !mainFinder.isDestroyed) {
+        mainFinder.destroy();
+        mainFinder = null;
+        finderCwd = null;
+      }
+
+      // Fall back to a database-free picker when persistence is unavailable.
+      if (!pickers) throw new Error("FFF picker factory is not initialized");
+      mainFinder = await pickers.create({
+        basePath: cwd,
+        enableHomeDirScanning,
+        enableFsRootScanning,
+      });
+      finderCwd = cwd;
+      return mainFinder;
+    })().finally(() => {
+      finderPromise = null;
+    });
+
+    return finderPromise;
+  }
+
+  function stopHomeScanStatus(): void {
+    if (homeScanTimer) {
+      clearInterval(homeScanTimer);
+      homeScanTimer = null;
+    }
+    uiCtx?.ui.setStatus?.(HOME_SCAN_STATUS_KEY, undefined);
+  }
+
+  // Continue tracking after the initial wait until the scan settles.
+  function trackHomeScanStatus(): void {
+    stopHomeScanStatus();
+    if (!uiCtx?.ui.setStatus) return;
+
+    const tick = () => {
+      const progress = mainFinder?.getScanProgress?.();
+      if (!progress?.ok || !progress.value.isScanning) {
+        stopHomeScanStatus();
+        return;
+      }
+      uiCtx?.ui.setStatus?.(
+        HOME_SCAN_STATUS_KEY,
+        `Agent is indexing $HOME (${progress.value.scannedFilesCount} files), this can lead to high CPU`,
+      );
+    };
+
+    homeScanTimer = setInterval(tick, HOME_SCAN_POLL_MS);
+    // Do not keep Pi alive solely for status polling.
+    (homeScanTimer as { unref?: () => void }).unref?.();
+    tick();
+  }
+
+  function destroyFinder() {
+    stopHomeScanStatus();
+    if (mainFinder && !mainFinder.isDestroyed) {
+      mainFinder.destroy();
+      mainFinder = null;
+      finderCwd = null;
+    }
+
+    auxPool?.destroy();
+    auxPool = null;
+    pickers = null;
+  }
+
+  async function resolveFinderForPath(
+    pathParam: string | undefined,
+    pattern: string,
+    exclude: string | string[] | undefined,
+  ): Promise<{ finder: FileFinderApi; query: string; root: string } | null> {
+    const route = routePathConstraint(pathParam, activeCwd);
+    if (!route) return null;
+    if (!auxPool) throw new Error("FFF auxiliary finder pool is not initialized");
+    const aux = await auxPool.acquire(route.root);
+    // Rebase the constraint if the pool provides a broader finder.
+    const rebase = nodePath.relative(aux.root, route.root).replaceAll(nodePath.sep, "/");
+    const suffix = [rebase, route.suffix].filter(Boolean).join("/");
+    const query = buildQuery(suffix || undefined, pattern, exclude, aux.root);
+    return { finder: aux.finder, query, root: aux.root };
+  }
+
+  async function getMentionItems(
+    query: string,
+    signal: AbortSignal,
+  ): Promise<AutocompleteItem[]> {
+    if (signal.aborted) return [];
+    const f = await ensureFinder(activeCwd);
+    if (signal.aborted) return [];
+
+    const result = f.mixedSearch(query, { pageSize: MENTION_MAX_RESULTS });
+    if (!result.ok) return [];
+
+    return result.value.items.slice(0, MENTION_MAX_RESULTS).map((mixed: MixedItem) => {
+      if (mixed.type === "directory") {
+        return {
+          value: buildAtCompletionValue(mixed.item.relativePath),
+          label: mixed.item.dirName,
+          description: mixed.item.relativePath,
+        };
+      }
+      return {
+        value: buildAtCompletionValue(mixed.item.relativePath),
+        label: mixed.item.fileName,
+        description: mixed.item.relativePath,
+      };
+    });
+  }
+
+  function registerAutocompleteProvider(ctx: {
+    ui: {
+      addAutocompleteProvider?: (
+        factory: (current: AutocompleteProvider) => AutocompleteProvider,
+      ) => void;
+    };
+  }) {
+    // Some Pi variants omit autocomplete support; search tools must still load.
+    if (typeof ctx.ui.addAutocompleteProvider !== "function") return;
+
+    ctx.ui.addAutocompleteProvider((current) => {
+      const mentionProvider = createFffMentionProvider(getMentionItems);
+
+      return {
+        async getSuggestions(lines, cursorLine, cursorCol, options) {
+          if (shouldEnableMentions()) {
+            try {
+              const mentionResult = await mentionProvider.getSuggestions(
+                lines,
+                cursorLine,
+                cursorCol,
+                options,
+              );
+              if (mentionResult) return mentionResult;
+            } catch {
+            }
+          }
+
+          return current.getSuggestions(lines, cursorLine, cursorCol, options);
+        },
+        applyCompletion(lines, cursorLine, cursorCol, item, prefix) {
+          return current.applyCompletion(lines, cursorLine, cursorCol, item, prefix);
+        },
+        shouldTriggerFileCompletion(lines, cursorLine, cursorCol) {
+          return (
+            current.shouldTriggerFileCompletion?.(lines, cursorLine, cursorCol) ?? true
+          );
+        },
+      };
+    });
+  }
+
+  type PendingToolDefinition<
+    TParams extends TSchema,
+    TDetails = unknown,
+    TState = any,
+  > = Omit<
+    ToolDefinition<TParams, TDetails, TState>,
+    "name" | "label" | "promptGuidelines"
+  > & {
+    promptGuidelines?: (names: ToolNames) => string[];
+  };
+
+  const pendingTools: (() => string)[] = [];
+  let toolsRegistered = false;
+
+  function queueTool<TParams extends TSchema, TDetails = unknown, TState = any>(
+    resolveName: () => string,
+    definition: PendingToolDefinition<TParams, TDetails, TState>,
+  ): void {
+    pendingTools.push(() => {
+      const { promptGuidelines, ...tool } = definition;
+      const resolvedName = resolveName();
+      pi.registerTool({
+        ...tool,
+        name: resolvedName,
+        label: resolvedName,
+        promptGuidelines: promptGuidelines?.(toolNames),
+      });
+      return resolvedName;
+    });
+  }
+
+  function registerPendingTools(): void {
+    if (toolsRegistered) return;
+
+    const registeredNames = pendingTools.map((register) => register());
+    pi.setActiveTools([...new Set([...pi.getActiveTools(), ...registeredNames])]);
+    toolsRegistered = true;
+  }
+
+  pi.registerFlag("fff-mode", {
+    description: "FFF mode: tools-and-ui | tools-only | override",
+    type: "string",
+  });
+
+  pi.registerFlag("fff-frecency-db", {
+    description: "Path to the frecency database (overrides FFF_FRECENCY_DB env)",
+    type: "string",
+  });
+
+  pi.registerFlag("fff-history-db", {
+    description: "Path to the query history database (overrides FFF_HISTORY_DB env)",
+    type: "string",
+  });
+
+  pi.registerFlag("fff-enable-root-scan", {
+    description:
+      "Allow indexing when launched from the filesystem root (also: FFF_ENABLE_ROOT_SCAN env)",
+    type: "boolean",
+  });
+
+  pi.registerFlag("fff-enable-home-scan", {
+    description:
+      "Index the home dir when launched from $HOME (default true; disable with --fff-enable-home-scan=false or FFF_ENABLE_HOME_SCAN=0)",
+    type: "boolean",
+  });
+
+  function reportInitFailure(ctx: ExtensionContext, error: unknown): void {
+    ctx.ui.notify(
+      `FFF init failed: ${error instanceof Error ? error.message : String(error)}`,
+      "error",
+    );
+  }
+
+  function prepareSession(ctx: ExtensionContext): void {
+    activeCwd = ctx.cwd;
+    uiCtx = ctx;
+    if (toolsRegistered) return;
+
+    // Pi loads extension flags after this module initializes.
+    resolveStartupConfig();
+
+    // Restore the persisted mode before registering tool names.
+    const entries = ctx.sessionManager?.getEntries();
+    if (entries) {
+      const modeEntry = [...entries]
+        .reverse()
+        .find(
+          (e: { type: string; customType?: string }) =>
+            e.type === "custom" && e.customType === "fff-mode",
+        );
+      if (
+        modeEntry &&
+        typeof (modeEntry as any).data?.mode === "string" &&
+        VALID_MODES.includes((modeEntry as any).data.mode as FffMode)
+      ) {
+        const restored = (modeEntry as any).data.mode as FffMode;
+        if (restored !== currentMode) setMode(restored);
+      }
+    }
+
+    initializeFinderFactories();
+    registerPendingTools();
+  }
+
+  pi.on("session_start", async (_event, ctx) => {
+    try {
+      prepareSession(ctx);
+      registerAutocompleteProvider(ctx);
+      await ensureFinder(activeCwd);
+
+      // Warn when home-directory indexing can be resource-intensive.
+      const atHome = enableHomeDirScanning && isHomeDir(activeCwd);
+      if (atHome) {
+        warnHomeDirScan(activeCwd);
+        ctx.ui.setStatus?.(
+          HOME_SCAN_STATUS_KEY,
+          "Agent is indexing $HOME, this can lead to high CPU",
+        );
+      }
+
+      // The initial wait can time out while indexing continues.
+      if (atHome) trackHomeScanStatus();
+    } catch (error: unknown) {
+      reportInitFailure(ctx, error);
+    }
+  });
+
+  // Support callers that start an agent without a session_start event.
+  pi.on("before_agent_start", (_event, ctx) => {
+    if (toolsRegistered) return;
+    try {
+      prepareSession(ctx);
+    } catch (error: unknown) {
+      reportInitFailure(ctx, error);
+    }
+  });
+
+  pi.on("session_shutdown", async () => {
+    destroyFinder();
+  });
+
+  const renderTextResult = (
+    result: { content?: { type: string; text?: string }[] },
+    options: { expanded?: boolean },
+    theme: any,
+    context: any,
+    maxLines = 15,
+  ) => {
+    const text = (context.lastComponent as Text | undefined) ?? new Text("", 0, 0);
+    const output = result.content?.find((c) => c.type === "text")?.text?.trim() ?? "";
+    if (!output) {
+      text.setText(theme.fg("muted", "No output"));
+      return text;
+    }
+
+    const lines = output.split("\n");
+    const displayLines = lines.slice(0, options.expanded ? lines.length : maxLines);
+    let content = `\n${displayLines.map((line: string) => theme.fg("toolOutput", line)).join("\n")}`;
+    if (lines.length > displayLines.length) {
+      content += theme.fg(
+        "muted",
+        `\n... (${lines.length - displayLines.length} more lines)`,
+      );
+    }
+    text.setText(content);
+    return text;
+  };
+
+  const grepSchema = Type.Object({
+    pattern: Type.String({
+      description: "Search pattern (literal text or regex)",
+    }),
+    path: Type.Optional(
+      Type.String({
+        description:
+          "Path constraint. Directory prefix (src/ or src/foo/), bare filename with extension (main.rs), or glob (*.ts, src/**/*.cc, {src,lib}/**). Applied to the full repo-relative path. Absolute, ~/, and ../ paths outside the workspace are also supported and searched with a separate index.",
+      }),
+    ),
+    exclude: Type.Optional(
+      Type.Union([Type.String(), Type.Array(Type.String())], {
+        description:
+          "Exclude paths (comma/space-separated or array). Same syntax as path: directory prefix ('test/'), filename with extension ('config.json'), or glob ('*.min.js', '**/*.{rs,go}'). A leading '!' is optional and ignored — both 'test/' and '!test/' work. Example: 'test/,*.min.js,!vendor/'.",
+      }),
+    ),
+    caseSensitive: Type.Optional(
+      Type.Boolean({
+        description:
+          "Force case-sensitive matching. Default uses smart-case (case-insensitive when pattern is all lowercase).",
+      }),
+    ),
+    context: Type.Optional(
+      Type.Number({
+        description: `Context lines before+after each match (0-${GREP_CONTEXT_MAX})`,
+      }),
+    ),
+    limit: Type.Optional(
+      Type.Number({
+        description: `Max matches (default ${DEFAULT_GREP_LIMIT})`,
+      }),
+    ),
+    cursor: Type.Optional(
+      Type.String({ description: "Pagination cursor from previous result" }),
+    ),
+  });
+
+  queueTool(() => toolNames.grep, {
+    description: `Grep file contents. Smart-case, auto-detects regex vs literal, git-aware. Results are ranked by frecency (most-accessed files first); matches within a file stay in source order. Default limit ${DEFAULT_GREP_LIMIT}.`,
+    promptSnippet: "Grep contents",
+    promptGuidelines: (names) => [
+      `${names.grep}: prefer bare identifiers as patterns. Literal queries are most efficient.`,
+      `${names.grep}: use path for include ('src/', '*.ts') and exclude for noise ('test/,*.min.js').`,
+      `${names.grep}: caseSensitive: true when you need exact case (smart-case otherwise).`,
+      `${names.grep}: after 1-2 greps, read the top match instead of more greps.`,
+    ],
+    parameters: grepSchema,
+
+    async execute(_toolCallId, params, signal) {
+      if (signal?.aborted) throw new Error("Operation aborted");
+
+      const pattern = params.pattern;
+      const aux = await resolveFinderForPath(params.path, pattern, params.exclude);
+
+      const picker = aux ? aux.finder : await ensureFinder(activeCwd);
+      const effectiveLimit = Math.max(1, params.limit ?? DEFAULT_GREP_LIMIT);
+      // Cap both total and per-file matches to honour the requested limit.
+      const pageSize = Math.min(effectiveLimit, GREP_PAGE_SIZE_MAX);
+      const context = clampContext(params.context);
+      const query = aux
+        ? aux.query
+        : buildQuery(params.path, pattern, params.exclude, activeCwd);
+
+      // Use regex only when its syntax is valid; otherwise search literal text.
+      const hasRegexSyntax = pattern !== pattern.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+      let mode: GrepMode = hasRegexSyntax ? "regex" : "plain";
+      if (mode === "regex") {
+        try {
+          new RegExp(pattern);
+        } catch {
+          mode = "plain";
+        }
+      }
+
+      // Reject wildcard-only patterns that would read the entire workspace.
+      const p = pattern.trim();
+      const isWildcardOnly =
+        hasRegexSyntax &&
+        /^(?:[.^$]*(?:[.][*+?]|\*|\+)[.^$]*|[.^$\s]*|\.\*\??|\.\*[+?]?|\.\+\??|\.|\*|\?)$/.test(
+          p,
+        );
+
+      if (isWildcardOnly) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Pattern '${params.pattern}' matches everything — grep needs a concrete substring or identifier. Example: \`pattern: 'MyClass'\` or \`pattern: 'export function'\`.`,
+            },
+          ],
+          details: { totalMatched: 0, totalFiles: 0 },
+        };
+      }
+
+      // Omit caseSensitive to retain smart-case behaviour.
+      const smartCase = params.caseSensitive !== true;
+
+      const grepResult = picker.grep(query, {
+        mode,
+        smartCase,
+        maxMatchesPerFile: pageSize,
+        pageSize,
+        cursor: (params.cursor ? getCursor(params.cursor) : null) ?? null,
+        beforeContext: context,
+        afterContext: context,
+        classifyDefinitions: true,
+        timeBudgetMs: GREP_TIME_BUDGET_MS,
+      });
+
+      if (!grepResult.ok) throw new Error(grepResult.error);
+
+      let result = grepResult.value;
+      let fuzzyNotice: string | null = null;
+
+      // Skip fuzzy fallback after an already-expensive search.
+      if (
+        result.items.length === 0 &&
+        !result.nextCursor &&
+        !params.cursor &&
+        mode !== "regex"
+      ) {
+        // Broaden only file-specific fallbacks; preserve directory constraints.
+        const lastSeg = params.path?.split(/[\\/]/).pop() ?? "";
+        const pathTargetsFile = /\.[a-zA-Z][a-zA-Z0-9]{0,9}$/.test(lastSeg);
+        const fuzzyQuery = pathTargetsFile ? pattern : query;
+        const fuzzy = picker.grep(fuzzyQuery, {
+          mode: "fuzzy",
+          smartCase,
+          maxMatchesPerFile: pageSize,
+          pageSize,
+          cursor: null,
+          beforeContext: 0,
+          afterContext: 0,
+          classifyDefinitions: true,
+          timeBudgetMs: GREP_TIME_BUDGET_MS,
+        });
+
+        if (fuzzy.ok && fuzzy.value.items.length > 0) {
+          fuzzyNotice = `0 exact matches. Maybe you meant this?`;
+          result = fuzzy.value;
+        }
+      }
+
+      let output = formatGrepOutput(result);
+      const notices: string[] = [];
+      if (result.regexFallbackError) {
+        notices.push(`Invalid regex: ${result.regexFallbackError}, used literal match`);
+      }
+      if (result.nextCursor) {
+        notices.push(`Continue with cursor="${storeCursor(result.nextCursor)}"`);
+      }
+
+      if (notices.length > 0) output += `\n\n[${notices.join(". ")}]`;
+      if (fuzzyNotice) output = `[${fuzzyNotice}]\n${output}`;
+
+      return {
+        content: [{ type: "text", text: output }],
+        details: {
+          totalMatched: result.totalMatched,
+          totalFiles: result.totalFiles,
+        },
+      };
+    },
+
+    renderCall(args, theme, context) {
+      const text = (context.lastComponent as Text | undefined) ?? new Text("", 0, 0);
+      const pattern = args?.pattern ?? "";
+      const path = args?.path ?? ".";
+      let content =
+        theme.fg("toolTitle", theme.bold(toolNames.grep)) +
+        " " +
+        theme.fg("accent", `/${pattern}/`) +
+        theme.fg("toolOutput", ` in ${path}`);
+      if (args?.limit !== undefined)
+        content += theme.fg("toolOutput", ` limit ${args.limit}`);
+      if (args?.cursor) content += theme.fg("muted", ` (page)`);
+      text.setText(content);
+      return text;
+    },
+
+    renderResult(result, options, theme, context) {
+      return renderTextResult(result, options, theme, context, 15);
+    },
+  });
+
+  const findSchema = Type.Object({
+    pattern: Type.String({
+      description:
+        "Fuzzy filename search and glob search. Frecency-ranked, git-aware. Multi-word = narrower (AND) not bound to order, use for multi word related concept search. Prefer this over ls/find/bash as the first exploration step whenever the user names a concept, feature, or symbol — it surfaces the relevant files in one call. Only use ls/read on a directory when you specifically need the alphabetical layout of an unknown repo, or when a concept search returned nothing.",
+    }),
+    path: Type.Optional(
+      Type.String({
+        description:
+          "Path constraint. Directory prefix (src/ or src/foo/), bare filename with extension (main.rs), or glob (*.ts, src/**/*.cc, {src,lib}/**). Applied to the full repo-relative path. Absolute, ~/, and ../ paths outside the workspace are also supported and searched with a separate index.",
+      }),
+    ),
+    exclude: Type.Optional(
+      Type.Union([Type.String(), Type.Array(Type.String())], {
+        description:
+          "Exclude paths (comma/space-separated or array). Same syntax as path: directory prefix ('test/'), filename with extension ('config.json'), or glob ('*.min.js', '**/*.{rs,go}'). A leading '!' is optional and ignored — both 'test/' and '!test/' work. Example: 'test/,*.min.js,!vendor/'.",
+      }),
+    ),
+    limit: Type.Optional(
+      Type.Number({
+        description: `Max results per page (default ${DEFAULT_FIND_LIMIT})`,
+      }),
+    ),
+    cursor: Type.Optional(
+      Type.String({ description: "Pagination cursor from previous result" }),
+    ),
+  });
+
+  queueTool(() => toolNames.find, {
+    description: `Fuzzy path search and glob search. Matches against the whole repo-relative path, not just the filename. Frecency-ranked, git-aware. Multi-word = narrower (AND). Default limit ${DEFAULT_FIND_LIMIT}.`,
+    promptSnippet: "Find files by path or glob",
+    promptGuidelines: (names) => [
+      `${names.find}: matches the WHOLE path, not just the filename — \`profile\` hits \`chrome/browser/profiles/x.cc\` too.`,
+      `${names.find}: keep queries to 1-2 terms; extra words narrow.`,
+      `${names.find}: use for paths, not content. Use ${names.grep} for content.`,
+      `${names.find}: for exact path matches use a glob in \`path\` — e.g. path: '**/profile.h' for exact filename, or path: 'src/**/profile.h' scoped to a subtree. Bare patterns are fuzzy.`,
+      `${names.find}: to list everything inside a directory, pass path: 'dir/**' with an empty or wildcard pattern instead of using pattern alone.`,
+      `${names.find}: use exclude: 'test/,*.min.js' to cut noise in large repos.`,
+    ],
+    parameters: findSchema,
+
+    async execute(_toolCallId, params, signal) {
+      if (signal?.aborted) throw new Error("Operation aborted");
+
+      // Reuse the original finder for a paginated result.
+      const resumed = params.cursor ? getFindCursor(params.cursor) : undefined;
+      const pool = auxPool;
+      if (!pool) throw new Error("FFF auxiliary finder pool is not initialized");
+      const aux = resumed
+        ? resumed.auxRoot
+          ? {
+              finder: (await pool.acquire(resumed.auxRoot, { exact: true })).finder,
+              root: resumed.auxRoot,
+            }
+          : null
+        : await resolveFinderForPath(params.path, params.pattern, params.exclude);
+
+      const picker = aux ? aux.finder : await ensureFinder(activeCwd);
+      const effectiveLimit = resumed
+        ? resumed.pageSize
+        : Math.max(1, params.limit ?? DEFAULT_FIND_LIMIT);
+
+      const query = resumed
+        ? resumed.query
+        : aux && "query" in aux
+          ? (aux as { query: string }).query
+          : buildQuery(params.path, params.pattern, params.exclude, activeCwd);
+
+      const pattern = resumed ? resumed.pattern : params.pattern;
+      const pageIndex = resumed?.nextPageIndex ?? 0;
+      const auxRoot = resumed?.auxRoot ?? aux?.root;
+
+      const searchResult = picker.fileSearch(query, {
+        pageIndex,
+        pageSize: effectiveLimit,
+      });
+      if (!searchResult.ok) throw new Error(searchResult.error);
+
+      const result = searchResult.value;
+      const formatted = formatFindOutput(result, effectiveLimit, pattern);
+      let output = formatted.output;
+
+      // A full page implies more results when totalMatched exceeds the displayed count.
+      const shownSoFar = pageIndex * effectiveLimit + result.items.length;
+      const hasMore =
+        result.items.length >= effectiveLimit && result.totalMatched > shownSoFar;
+
+      const notices: string[] = [];
+      if (formatted.weak && formatted.shownCount > 0)
+        notices.push(
+          `Query "${pattern}" produced only weak scattered fuzzy matches. Output capped at ${formatted.shownCount}/${result.totalMatched}.`,
+        );
+
+      if (!formatted.weak && hasMore) {
+        const remaining = result.totalMatched - shownSoFar;
+        const cursorId = storeFindCursor({
+          query,
+          pattern,
+          pageSize: effectiveLimit,
+          nextPageIndex: pageIndex + 1,
+          auxRoot,
+        });
+        notices.push(
+          `${remaining} more match${remaining === 1 ? "" : "es"} available. cursor="${cursorId}" to continue`,
+        );
+      }
+
+      if (notices.length > 0) output += `\n\n[${notices.join(". ")}]`;
+      return {
+        content: [{ type: "text", text: output }],
+        details: {
+          totalMatched: result.totalMatched,
+          totalFiles: result.totalFiles,
+          pageIndex,
+          hasMore,
+        },
+      };
+    },
+
+    renderCall(args, theme, context) {
+      const text = (context.lastComponent as Text | undefined) ?? new Text("", 0, 0);
+      const pattern = args?.pattern ?? "";
+      const path = args?.path ?? ".";
+      let content =
+        theme.fg("toolTitle", theme.bold(toolNames.find)) +
+        " " +
+        theme.fg("accent", pattern) +
+        theme.fg("toolOutput", ` in ${path}`);
+      if (args?.limit !== undefined)
+        content += theme.fg("toolOutput", ` (limit ${args.limit})`);
+      if (args?.cursor) content += theme.fg("muted", ` (page)`);
+      text.setText(content);
+      return text;
+    },
+
+    renderResult(result, options, theme, context) {
+      return renderTextResult(result, options, theme, context, 20);
+    },
+  });
+
+  // Keep multi-pattern search opt-in while its agent interaction is evaluated.
+  const enableMultiGrep = process.env.PI_FFF_MULTIGREP === "1";
+
+  if (enableMultiGrep) {
+    const multiGrepSchema = Type.Object({
+      patterns: Type.Array(Type.String(), {
+        description:
+          "Literal patterns (OR). Include snake_case/camelCase/PascalCase variants.",
+      }),
+      constraints: Type.Optional(
+        Type.String({ description: "File filter, e.g. '*.{ts,tsx} !test/'" }),
+      ),
+      context: Type.Optional(
+        Type.Number({
+          description: `Context lines before+after (0-${GREP_CONTEXT_MAX})`,
+        }),
+      ),
+      limit: Type.Optional(
+        Type.Number({
+          description: `Max matches (default ${DEFAULT_GREP_LIMIT})`,
+        }),
+      ),
+      cursor: Type.Optional(Type.String({ description: "Pagination cursor" })),
+    });
+
+    queueTool(() => toolNames.multiGrep, {
+      description:
+        "Search file contents for ANY of multiple literal patterns (OR, SIMD Aho-Corasick). Faster than regex alternation.",
+      promptSnippet: "Multi-pattern OR content search",
+      promptGuidelines: (names) => [
+        `${names.multiGrep}: use when searching for several identifiers at once.`,
+        `${names.multiGrep}: include all naming-convention variants (snake/camel/Pascal).`,
+        `${names.multiGrep}: patterns are literal. Use constraints for file filters.`,
+      ],
+      parameters: multiGrepSchema,
+
+      async execute(_toolCallId, params, signal) {
+        if (signal?.aborted) throw new Error("Operation aborted");
+        if (!params.patterns?.length)
+          throw new Error("patterns array must have at least 1 element");
+
+        const f = await ensureFinder(activeCwd);
+        const effectiveLimit = Math.max(1, params.limit ?? DEFAULT_GREP_LIMIT);
+        const pageSize = Math.min(effectiveLimit, GREP_PAGE_SIZE_MAX);
+        const context = clampContext(params.context);
+
+        const grepResult = f.multiGrep({
+          patterns: params.patterns,
+          constraints: params.constraints,
+          maxMatchesPerFile: pageSize,
+          pageSize,
+          smartCase: true,
+          cursor: (params.cursor ? getCursor(params.cursor) : null) ?? null,
+          beforeContext: context,
+          afterContext: context,
+        });
+
+        if (!grepResult.ok) throw new Error(grepResult.error);
+
+        const result = grepResult.value;
+        let output = formatGrepOutput(result);
+
+        const notices: string[] = [];
+        if (result.items.length >= effectiveLimit)
+          notices.push(`${effectiveLimit}+ matches (refine patterns)`);
+        if (result.nextCursor)
+          notices.push(
+            `More available. cursor="${storeCursor(result.nextCursor)}" to continue`,
+          );
+
+        if (notices.length > 0) output += `\n\n[${notices.join(". ")}]`;
+
+        return {
+          content: [{ type: "text", text: output }],
+          details: {
+            totalMatched: result.totalMatched,
+            totalFiles: result.totalFiles,
+            patterns: params.patterns,
+          },
+        };
+      },
+
+      renderCall(args, theme, context) {
+        const text = (context.lastComponent as Text | undefined) ?? new Text("", 0, 0);
+        const patterns = args?.patterns ?? [];
+        const constraints = args?.constraints;
+        let content =
+          theme.fg("toolTitle", theme.bold(toolNames.multiGrep)) +
+          " " +
+          theme.fg("accent", patterns.map((p: string) => `"${p}"`).join(", "));
+        if (constraints) content += theme.fg("toolOutput", ` (${constraints})`);
+        if (args?.cursor) content += theme.fg("muted", ` (page)`);
+        text.setText(content);
+        return text;
+      },
+
+      renderResult(result, options, theme, context) {
+        return renderTextResult(result, options, theme, context, 15);
+      },
+    });
+  }
+
+  pi.registerCommand("fff-mode", {
+    description: "Show or set FFF mode: /fff-mode [tools-and-ui | tools-only | override]",
+    handler: async (args, ctx) => {
+      if (!toolsRegistered) {
+        try {
+          prepareSession(ctx);
+        } catch (error: unknown) {
+          reportInitFailure(ctx, error);
+          return;
+        }
+      }
+
+      const arg = (args || "").trim();
+
+      if (!arg) {
+        const mode = getMode();
+        const flag = pi.getFlag("fff-mode") ?? "unset";
+        ctx.ui.notify(`Current mode: '${mode}' (flag: ${flag})`, "info");
+        return;
+      }
+
+      if (!VALID_MODES.includes(arg as FffMode)) {
+        ctx.ui.notify(`Usage: /fff-mode [${VALID_MODES.join(" | ")}]`, "warning");
+        return;
+      }
+
+      const newMode = arg as FffMode;
+      const oldMode = getMode();
+      pi.appendEntry("fff-mode", { mode: newMode });
+
+      if ((oldMode === "override") !== (newMode === "override")) {
+        ctx.ui.notify(
+          `Mode '${newMode}' saved. Run /reload to apply the tool name change.`,
+          "info",
+        );
+        return;
+      }
+
+      setMode(newMode);
+      ctx.ui.notify(`Mode changed: '${oldMode}' → '${newMode}'`, "info");
+    },
+  });
+
+  pi.registerCommand("fff-health", {
+    description: "Show FFF file finder health and status",
+    handler: async (_args, ctx) => {
+      if (!mainFinder || mainFinder.isDestroyed) {
+        ctx.ui.notify("FFF not initialized", "warning");
+        return;
+      }
+
+      const health = mainFinder.healthCheck();
+      if (!health.ok) {
+        ctx.ui.notify(`Health check failed: ${health.error}`, "error");
+        return;
+      }
+
+      const lines = [
+        `FFF v${health.value.version}`,
+        `Mode: ${getMode()}`,
+        `Git: ${health.value.git.repositoryFound ? `yes (${health.value.git.workdir ?? "unknown"})` : "no"}`,
+        `Picker: ${health.value.filePicker.initialized ? `${health.value.filePicker.indexedFiles ?? 0} files` : "not initialized"}`,
+        `Frecency: ${health.value.frecency.initialized ? "active" : "disabled"}`,
+        `Query tracker: ${health.value.queryTracker.initialized ? "active" : "disabled"}`,
+      ];
+
+      const progress = mainFinder.getScanProgress();
+      if (progress.ok) {
+        lines.push(
+          `Scanning: ${progress.value.isScanning ? "yes" : "no"} (${progress.value.scannedFilesCount} files)`,
+        );
+      }
+
+      ctx.ui.notify(lines.join("\n"), "info");
+    },
+  });
+
+  pi.registerCommand("fff-rescan", {
+    description: "Trigger FFF to rescan files",
+    handler: async (_args, ctx) => {
+      if (!mainFinder || mainFinder.isDestroyed) {
+        ctx.ui.notify("FFF not initialized", "warning");
+        return;
+      }
+
+      const result = mainFinder.scanFiles();
+      if (!result.ok) {
+        ctx.ui.notify(`Rescan failed: ${result.error}`, "error");
+        return;
+      }
+
+      ctx.ui.notify("FFF rescan triggered", "info");
+    },
+  });
+}

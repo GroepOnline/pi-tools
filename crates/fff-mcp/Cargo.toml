@@ -1,0 +1,42 @@
+[package]
+name = "fff-mcp"
+version = "0.10.5"
+edition = "2024"
+description = "MCP server for FFF file finder - drop-in replacement for AI code assistant search tools"
+license = "MIT"
+
+[lints]
+workspace = true
+
+[[bin]]
+name = "fff-mcp"
+path = "src/main.rs"
+
+[features]
+# Pure-Rust walker by default; opt into zlob explicitly (needs Zig).
+default = ["ripgrep"]
+ripgrep = ["fff/ripgrep", "fff-query-parser/ripgrep"]
+zlob = ["fff/zlob", "fff-query-parser/zlob"]
+
+[dependencies]
+fff = { package = "fff-search", path = "../fff-core", default-features = false , version = "0.10.5", features = ["definitions"] }
+fff-query-parser = { path = "../fff-query-parser", default-features = false , version = "0.10.5" }
+mimalloc = { workspace = true }
+rmcp = { version = "1.7.0", features = ["server", "transport-io"] }
+schemars = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tokio = { version = "1", features = ["full"] }
+tracing = { workspace = true }
+git2 = { workspace = true }
+clap = { version = "4", features = ["derive", "env"] }
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.60", features = [
+    "Win32_Foundation",
+    "Win32_System_Threading",
+    "Win32_System_Diagnostics_ToolHelp",
+] }
+
+[dev-dependencies]
+tempfile = "3.8"
