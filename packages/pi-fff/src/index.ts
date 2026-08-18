@@ -530,8 +530,7 @@ export default function fffExtension(pi: ExtensionAPI) {
                 options,
               );
               if (mentionResult) return mentionResult;
-            } catch {
-            }
+            } catch {}
           }
 
           return current.getSuggestions(lines, cursorLine, cursorCol, options);
