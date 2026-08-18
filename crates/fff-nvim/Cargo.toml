@@ -39,7 +39,7 @@ zlob = { workspace = true, optional = true }
 
 [dev-dependencies]
 criterion = { version = "0.5", features = ["html_reports"] }
-rand = { version = "0.8", features = ["small_rng"] }
+rand = { version = "0.9", features = ["small_rng"] }
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
 [[bench]]

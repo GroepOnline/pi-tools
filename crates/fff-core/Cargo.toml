@@ -99,7 +99,7 @@ signal-hook-registry = { workspace = true }
 criterion = { version = "0.5", features = ["html_reports"] }
 ctor = "0.2"
 proptest = { version = "1", default-features = false, features = ["std", "fork"] }
-rand = { version = "0.8", features = ["small_rng"] }
+rand = { version = "0.9", features = ["small_rng"] }
 tempfile = "3.8"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
