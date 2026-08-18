@@ -539,8 +539,7 @@ export default function fffExtension(pi: ExtensionAPI) {
                 options,
               );
               if (mentionResult) return mentionResult;
-            } catch {
-            }
+            } catch {}
           }
 
           return current.getSuggestions(lines, cursorLine, cursorCol, options);
@@ -759,7 +758,8 @@ export default function fffExtension(pi: ExtensionAPI) {
     ),
     maxMatchesPerFile: Type.Optional(
       Type.Number({
-        description: "Maximum matches returned from any one file (default follows limit, max 50)",
+        description:
+          "Maximum matches returned from any one file (default follows limit, max 50)",
       }),
     ),
     compact: Type.Optional(

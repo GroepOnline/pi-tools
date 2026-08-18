@@ -29,9 +29,7 @@ describe("formatGrepOutput", () => {
   test("renders compact path-line-match rows without context", () => {
     const output = formatGrepOutput(result, true);
 
-    expect(output).toBe(
-      "src/example.ts:12: export function example() { return true; }",
-    );
+    expect(output).toBe("src/example.ts:12: export function example() { return true; }");
     expect(output).not.toContain("before");
     expect(output).not.toContain("after");
   });
