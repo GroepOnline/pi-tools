@@ -1,4 +1,17 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, mock, test } from "bun:test";
+
+mock.module("@earendil-works/pi-tui", () => ({
+  Text: class Text {
+    text: string;
+    constructor(text: string) {
+      this.text = text;
+    }
+    setText(text: string) {
+      this.text = text;
+    }
+  },
+}));
+
 import { formatGrepOutput } from "../src/index.js";
 
 const result = {
