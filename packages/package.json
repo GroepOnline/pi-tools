@@ -1,6 +1,6 @@
 {
   "private": true,
-  "workspaces": ["fff-bun", "fff-node", "pi-fff"],
+  "workspaces": ["fff-bun", "fff-node", "pi-tools"],
   "scripts": {
     "format": "oxfmt .",
     "format:check": "oxfmt --check .",

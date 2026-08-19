@@ -1,6 +1,6 @@
 {
   "private": true,
   "pi": {
-    "extensions": ["./packages/pi-fff/src/index.ts"]
+    "extensions": ["./packages/pi-tools/src/index.ts"]
   }
 }

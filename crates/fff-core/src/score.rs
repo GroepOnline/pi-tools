@@ -1457,7 +1457,7 @@ mod filename_bonus_tests {
         );
     }
 
-    /// Regression: PR #652 / field panic in pi-fff v0.9.6.
+    /// Regression: PR #652 / field panic in pi-tools v0.9.6.
     /// A path >512 bytes (but within PATH_MAX) overflows the fixed
     /// `[*const u8; 32]` chunk-pointer buffer during scoring and panics with
     /// "index out of bounds: the len is 32 but the index is 32".

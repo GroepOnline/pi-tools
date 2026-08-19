@@ -1,6 +1,6 @@
-# @groeponline/pi-fff
+# @groeponline/pi-tools
 
-`@groeponline/pi-fff` is a [Pi](https://github.com/badlogic/pi-mono) extension for fast, local file discovery and content search. It adds FFF-powered search tools and can provide FFF-ranked `@` file completion in the interactive editor.
+`@groeponline/pi-tools` is a [Pi](https://github.com/badlogic/pi-mono) extension for fast, local file discovery and content search. It adds FFF-powered search tools and can provide FFF-ranked `@` file completion in the interactive editor.
 
 The extension is designed for repeated exploration of a workspace. It builds a local index in the background, then uses that index for fuzzy path matching and content search. File-use history and local Git state can improve result ranking when available.
 
@@ -9,16 +9,16 @@ The extension is designed for repeated exploration of a workspace. It builds a l
 Install globally:
 
 ```bash
-pi install npm:@groeponline/pi-fff
+pi install npm:@groeponline/pi-tools
 ```
 
 Install for one project only:
 
 ```bash
-pi install -l npm:@groeponline/pi-fff
+pi install -l npm:@groeponline/pi-tools
 ```
 
-Verify the package source, current version, and supported Pi metadata at [pi.dev/packages/@groeponline/pi-fff](https://pi.dev/packages/@groeponline/pi-fff).
+Verify the package source, current version, and supported Pi metadata at [pi.dev/packages/@groeponline/pi-tools](https://pi.dev/packages/@groeponline/pi-tools).
 
 ## Choose a mode
 
@@ -96,11 +96,11 @@ The tool is opt-in while its interaction pattern is evaluated. Do not depend on 
 
 ## Persistent configuration
 
-Create `pi-fff.json` in Pi’s agent directory. The default location is `~/.pi/agent/pi-fff.json`; `PI_CODING_AGENT_DIR` changes the base directory.
+Create `pi-tools.json` in Pi’s agent directory. The default location is `~/.pi/agent/pi-tools.json`; `PI_CODING_AGENT_DIR` changes the base directory.
 
 ```json
 {
-  "$schema": "https://raw.githubusercontent.com/GroepOnline/pi-tools/main/packages/pi-fff/pi-fff.schema.json",
+  "$schema": "https://raw.githubusercontent.com/GroepOnline/pi-tools/main/packages/pi-tools/pi-tools.schema.json",
   "mode": "tools-and-ui",
   "enableFsRootScanning": false,
   "enableHomeDirScanning": true
@@ -168,7 +168,7 @@ See the repository-level [development guidance](../../AGENTS.md) for maintainers
 
 ## References
 
-[1]: https://pi.dev/packages/@groeponline/pi-fff "@groeponline/pi-fff on pi.dev"
+[1]: https://pi.dev/packages/@groeponline/pi-tools "@groeponline/pi-tools on pi.dev"
 [2]: https://github.com/GroepOnline/pi-tools "GroepOnline/pi-tools repository"
 
 [1] [2]

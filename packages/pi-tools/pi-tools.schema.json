@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://raw.githubusercontent.com/GroepOnline/pi-tools/main/packages/pi-fff/pi-fff.schema.json",
-  "title": "pi-fff configuration",
-  "description": "Global startup configuration for the pi-fff extension.",
+  "$id": "https://raw.githubusercontent.com/GroepOnline/pi-tools/main/packages/pi-tools/pi-tools.schema.json",
+  "title": "pi-tools configuration",
+  "description": "Global startup configuration for the pi-tools extension.",
   "type": "object",
   "additionalProperties": false,
   "properties": {

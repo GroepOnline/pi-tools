@@ -76,7 +76,7 @@ fn bigram_overlay_coherence_stress_base_edits_and_deletes() {
             dead_tokens.push(token.clone());
         }
 
-                // -- EDIT: modify next 5 live base files --
+        // -- EDIT: modify next 5 live base files --
         let edit_count = 5.min(live_tokens.len());
         for (i, (name, old_token)) in live_tokens.iter_mut().take(edit_count).enumerate() {
             let new_token = format!("EDITED_R{round}_{i:04}");
@@ -85,7 +85,9 @@ fn bigram_overlay_coherence_stress_base_edits_and_deletes() {
                 let mut guard = shared_picker.write().unwrap();
                 let picker = guard.as_mut().unwrap();
                 assert!(
-                    picker.handle_create_or_modify(base.join(name)).is_some(),
+                    picker
+                        .handle_create_or_modify(base.join(name.clone()))
+                        .is_some(),
                     "round {round}: modify({name}) should succeed"
                 );
             }
@@ -846,7 +848,7 @@ fn bigram_overlay_coherence_full_lifecycle_seed_edit_commit_rescan_edit() {
 
     // Delete some files (pick indices near the end).
     let mut phase1_dead = Vec::new();
-    for (i, (name, token)) in repo_files.iter().enumerate().skip(195).take(5) {
+    for (_, (name, token)) in repo_files.iter().enumerate().skip(195).take(5) {
         let path = base.join(name);
         fs::remove_file(&path).unwrap();
         {
@@ -1329,8 +1331,12 @@ fn wait_for_bigram(shared_picker: &SharedFilePicker) {
         let ready = shared_picker
             .read()
             .ok()
-            .and_then(|guard| guard.as_ref())
-            .is_some_and(|p| !p.is_scan_active() && p.bigram_index().is_some());
+            .and_then(|guard| {
+                guard
+                    .as_ref()
+                    .map(|p| !p.is_scan_active() && p.bigram_index().is_some())
+            })
+            .unwrap_or(false);
         if ready {
             break;
         }
@@ -1343,7 +1349,7 @@ fn wait_for_bigram(shared_picker: &SharedFilePicker) {
 
 fn stop_picker(shared_picker: &SharedFilePicker) {
     if let Ok(mut guard) = shared_picker.write() {
-        if let Some(picker) = guard.as_deref_mut() {
+        if let Some(ref mut picker) = *guard {
             picker.stop_background_monitor();
         }
     }

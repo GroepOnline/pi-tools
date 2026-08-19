@@ -1,5 +1,5 @@
 {
-  "name": "@groeponline/pi-fff",
+  "name": "@groeponline/pi-tools",
   "public": true,
   "version": "0.10.5",
   "description": "Fast local file and content search for Pi agents",
@@ -9,9 +9,9 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/GroepOnline/pi-tools.git",
-    "directory": "packages/pi-fff"
+    "directory": "packages/pi-tools"
   },
-  "homepage": "https://pi.dev/packages/@groeponline/pi-fff",
+  "homepage": "https://pi.dev/packages/@groeponline/pi-tools",
   "bugs": {
     "url": "https://github.com/GroepOnline/pi-tools/issues"
   },
@@ -34,7 +34,7 @@
   },
   "files": [
     "src",
-    "pi-fff.schema.json"
+    "pi-tools.schema.json"
   ],
   "publishConfig": {
     "access": "public"

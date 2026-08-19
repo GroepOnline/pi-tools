@@ -784,13 +784,13 @@ jobs:
           cd packages/fff-node
           npm publish --tag "$TAG" --access public
 
-      - name: Publish pi-fff package
+      - name: Publish pi-tools package
         run: |
           VERSION="${{ steps.version.outputs.version }}"
           TAG="${{ steps.version.outputs.npm_tag }}"
 
-          echo "Publishing @groeponline/pi-fff@${VERSION} with tag ${TAG}..."
-          make set-npm-version PKG=packages/pi-fff VERSION="$VERSION"
+          echo "Publishing @groeponline/pi-tools@${VERSION} with tag ${TAG}..."
+          make set-npm-version PKG=packages/pi-tools VERSION="$VERSION"
 
-          cd packages/pi-fff
+          cd packages/pi-tools
           npm publish --tag "$TAG" --access public

@@ -13,7 +13,7 @@ Pi extensions can register custom tools and commands, persist session state, sub
 
 Pi distinguishes global and project configuration. Project-local resources require project trust, which makes a global-only package configuration a sensible default for settings that change registered tool names.
 
-The package catalog demonstrates that agent packages increasingly combine narrow tools with deliberate workflow and UI behaviour. This supports improving pi-fff through focused search quality, visibility, and configuration rather than adding unrelated agent orchestration.
+The package catalog demonstrates that agent packages increasingly combine narrow tools with deliberate workflow and UI behaviour. This supports improving pi-tools through focused search quality, visibility, and configuration rather than adding unrelated agent orchestration.
 
 The public GroepOnline organization includes related Pi repositories: `pi-wishcraft`, `pi-agent-orchestrator`, `pi-subagents-tui`, `pi-cli-search-tools`, `pi-control`, and `pi-missions`. `pi-subagents-tui` is publicly marked as archived; its potential utility should be evaluated by source inspection before reuse.
 
@@ -28,9 +28,9 @@ The public GroepOnline organization includes related Pi repositories: `pi-wishcr
 
 ## GroepOnline repository review
 
-`pi-subagents-tui` is archived and presents a JSON-over-stdin Go sidecar for a cinematic multi-agent dashboard. Its useful transferable pattern is not the sidecar itself but its disciplined status contract: a small typed payload, explicit running/completed/failed states, malformed-input handling, terminal-resize tests, and visual showcase assets. For pi-fff, the equivalent should be a native Pi status/widget implementation rather than a new binary process; the extension API already exposes status and custom UI mechanisms.
+`pi-subagents-tui` is archived and presents a JSON-over-stdin Go sidecar for a cinematic multi-agent dashboard. Its useful transferable pattern is not the sidecar itself but its disciplined status contract: a small typed payload, explicit running/completed/failed states, malformed-input handling, terminal-resize tests, and visual showcase assets. For pi-tools, the equivalent should be a native Pi status/widget implementation rather than a new binary process; the extension API already exposes status and custom UI mechanisms.
 
-`pi-cli-search-tools` is a small Pi skill for non-interactive `rg`, `fzf`, `jq`, `awk`, and pipeline use. It confirms a complementary role for pi-fff: the extension should remain the fast, stateful first choice for repeated workspace search, while skill guidance can teach when a one-shot shell query or structured JSON filter is the more appropriate tool. The repository's Pi-session log search script is potentially useful as a separate opt-in diagnostic utility, not as a runtime dependency of pi-fff.
+`pi-cli-search-tools` is a small Pi skill for non-interactive `rg`, `fzf`, `jq`, `awk`, and pipeline use. It confirms a complementary role for pi-tools: the extension should remain the fast, stateful first choice for repeated workspace search, while skill guidance can teach when a one-shot shell query or structured JSON filter is the more appropriate tool. The repository's Pi-session log search script is potentially useful as a separate opt-in diagnostic utility, not as a runtime dependency of pi-tools.
 
 ## Refined opportunities
 
@@ -66,7 +66,7 @@ Until that confirmation, the working copy can be made technically independent by
 
 ## Additional GroepOnline and upstream findings
 
-`pi-wishcraft` shows a mature native Pi extension architecture: typed domain modules, a status-oriented UI, cached expensive data, bounded custom commands, input sanitization before terminal rendering, release documentation, a changelog, and an explicit roadmap. For pi-fff, the relevant pattern is a compact native status segment with cached scan information and sanitized local metadata—not queueing, autonomous background work, or broad editor ownership.
+`pi-wishcraft` shows a mature native Pi extension architecture: typed domain modules, a status-oriented UI, cached expensive data, bounded custom commands, input sanitization before terminal rendering, release documentation, a changelog, and an explicit roadmap. For pi-tools, the relevant pattern is a compact native status segment with cached scan information and sanitized local metadata—not queueing, autonomous background work, or broad editor ownership.
 
 Issue [#714](https://github.com/dmtrKovalenko/fff/issues/714) confirms that ignored paths inside the active workspace remain a deliberate design decision rather than a straightforward defect. A scoped auxiliary index for an explicitly named ignored file or directory is useful, but indiscriminate indexing of large ignored trees such as `node_modules` can be expensive. Any implementation should require an exact, concrete path; impose a scan budget; reuse a bounded auxiliary pool only when the root matches exactly; show scan progress; and preserve the default ignore-aware workspace search.
 

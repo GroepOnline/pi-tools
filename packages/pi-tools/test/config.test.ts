@@ -10,7 +10,7 @@ describe("loadConfig", () => {
   let configPath: string;
 
   beforeEach(() => {
-    agentDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-fff-config-"));
+    agentDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-tools-config-"));
     configPath = path.join(agentDir, CONFIG_FILE_NAME);
   });
 
@@ -25,7 +25,7 @@ describe("loadConfig", () => {
   test("loads every supported option", () => {
     const config = {
       $schema:
-        "https://raw.githubusercontent.com/GroepOnline/pi-tools/main/packages/pi-fff/pi-fff.schema.json",
+        "https://raw.githubusercontent.com/GroepOnline/pi-tools/main/packages/pi-tools/pi-tools.schema.json",
       mode: "override" as const,
       frecencyDbPath: "/data/frecency",
       historyDbPath: "/data/history",
@@ -41,7 +41,7 @@ describe("loadConfig", () => {
     fs.writeFileSync(configPath, '{"mode":');
 
     expect(() => loadConfig(agentDir)).toThrow(
-      `Invalid pi-fff config at ${configPath}: not valid JSON`,
+      `Invalid pi-tools config at ${configPath}: not valid JSON`,
     );
   });
 
@@ -78,7 +78,7 @@ describe("loadConfig", () => {
     fs.mkdirSync(configPath);
 
     expect(() => loadConfig(agentDir)).toThrow(
-      `Could not read pi-fff config at ${configPath}`,
+      `Could not read pi-tools config at ${configPath}`,
     );
   });
 

@@ -1,6 +1,6 @@
 # GroepOnline FFF Extension Roadmap
 
-**Scope.** This roadmap covers the Pi extension [`@groeponline/pi-fff`](https://pi.dev/packages/@groeponline/pi-fff), not a general rewrite of the Rust search engine. The target is a local-first search experience that is predictable for agents, observable for users, and resilient across supported Pi hosts.
+**Scope.** This roadmap covers the Pi extension [`@groeponline/pi-tools`](https://pi.dev/packages/@groeponline/pi-tools), not a general rewrite of the Rust search engine. The target is a local-first search experience that is predictable for agents, observable for users, and resilient across supported Pi hosts.
 
 > **Product principle:** keep the default search path fast, indexed, and ignore-aware. Expand behaviour only through explicit, bounded opt-ins that do not silently turn workspace search into broad filesystem crawling.
 
@@ -44,7 +44,7 @@ The third release should focus on quality of results rather than quantity of too
 
 | Non-goal | Reason |
 | --- | --- |
-| A background agent, autonomous mission runner, or multi-agent scheduler inside `pi-fff` | Search should remain a focused local integration. Those concerns belong to dedicated GroepOnline agent packages. |
+| A background agent, autonomous mission runner, or multi-agent scheduler inside `pi-tools` | Search should remain a focused local integration. Those concerns belong to dedicated GroepOnline agent packages. |
 | A permanent Go or Rust sidecar for status rendering | Pi exposes native UI and status APIs; a separate process would add distribution, lifecycle, and failure complexity without improving search. |
 | Globally disabling ignore rules | It breaks the fast default and risks indexing dependency, build, and generated trees. Only explicitly named paths should qualify for scoped handling. |
 | Silent network telemetry or remote index storage | The package’s local-first privacy contract is a product differentiator and must remain intact. |
@@ -54,7 +54,7 @@ The third release should focus on quality of results rather than quantity of too
 
 Every release should include a changelog entry, a short migration note when the search contract changes, package and root documentation updates, and focused regression coverage. Terminal-facing values derived from local files or Git metadata must be sanitised before rendering, following the safe rendering pattern established in GroepOnline’s active Pi extension work. [4]
 
-Package metadata should continue to point users to the GroepOnline package and repository pages. The current public package page is the canonical installation surface for `@groeponline/pi-fff`. [9]
+Package metadata should continue to point users to the GroepOnline package and repository pages. The current public package page is the canonical installation surface for `@groeponline/pi-tools`. [9]
 
 ## References
 
@@ -66,4 +66,4 @@ Package metadata should continue to point users to the GroepOnline package and r
 [6]: https://github.com/GroepOnline/pi-cli-search-tools "GroepOnline pi-cli-search-tools"
 [7]: https://github.com/dmtrKovalenko/fff/pull/779 "FFF PR #779: SDK fallback for Bun-compiled hosts"
 [8]: https://github.com/dmtrKovalenko/fff/issues/714 "FFF issue #714: Explicit ignored-path search"
-[9]: https://pi.dev/packages/@groeponline/pi-fff "@groeponline/pi-fff package page"
+[9]: https://pi.dev/packages/@groeponline/pi-tools "@groeponline/pi-tools package page"
