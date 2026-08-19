@@ -76,7 +76,7 @@ fn bigram_overlay_coherence_stress_base_edits_and_deletes() {
             dead_tokens.push(token.clone());
         }
 
-                // -- EDIT: modify next 5 live base files --
+        // -- EDIT: modify next 5 live base files --
         let edit_count = 5.min(live_tokens.len());
         for (i, (name, old_token)) in live_tokens.iter_mut().take(edit_count).enumerate() {
             let new_token = format!("EDITED_R{round}_{i:04}");
