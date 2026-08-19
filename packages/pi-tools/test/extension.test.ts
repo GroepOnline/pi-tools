@@ -183,8 +183,8 @@ const CONFIG_ENV_KEYS = [
 const savedEnv: Record<string, string | undefined> = {};
 for (const key of CONFIG_ENV_KEYS) savedEnv[key] = process.env[key];
 
-const agentDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-fff-extension-"));
-const configPath = path.join(agentDir, "pi-fff.json");
+const agentDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-tools-extension-"));
+const configPath = path.join(agentDir, "pi-tools.json");
 
 beforeEach(() => {
   createCalls.length = 0;
@@ -206,7 +206,7 @@ afterAll(() => {
   fs.rmSync(agentDir, { recursive: true, force: true });
 });
 
-describe("pi-fff global config", () => {
+describe("pi-tools global config", () => {
   test("applies every supported startup option", async () => {
     writeConfig({
       mode: "override",
@@ -284,7 +284,7 @@ function writeConfig(config: Record<string, unknown>): void {
   fs.writeFileSync(configPath, JSON.stringify(config));
 }
 
-describe("pi-fff session mode", () => {
+describe("pi-tools session mode", () => {
   test("registers tools only after restoring the saved mode", async () => {
     const setup = createPi("tools-and-ui");
     const ctx = createContext();
@@ -354,7 +354,7 @@ describe("pi-fff session mode", () => {
 });
 
 // Regression for #743: launching from $HOME must be visible and interruptible.
-describe("pi-fff $HOME scan warning", () => {
+describe("pi-tools $HOME scan warning", () => {
   test("warns and pins a status when cwd is $HOME", async () => {
     const setup = await start(undefined, os.homedir());
 
@@ -415,7 +415,7 @@ describe("pi-fff $HOME scan warning", () => {
   });
 });
 
-describe("pi-fff autocomplete registration", () => {
+describe("pi-tools autocomplete registration", () => {
   test("session_start registers a provider without replacing the editor", async () => {
     const { ctx } = await start();
 

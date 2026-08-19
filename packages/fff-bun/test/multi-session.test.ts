@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { FileFinder } from "../src/index";
 
-// Real-native tests for #700/#760. Lives here, not in pi-fff/test: that suite
+// Real-native tests for #700/#760. Lives here, not in pi-tools/test: that suite
 // mocks @groeponline/fff-bun process-globally and bun module mocks can't be undone.
 mock.module("@earendil-works/pi-tui", () => ({
   Text: class Text {
@@ -35,11 +35,11 @@ mock.module("@sinclair/typebox", () => ({
   },
 }));
 
-const { default: fffExtension } = await import("../../pi-fff/src/index");
+const { default: fffExtension } = await import("../../pi-tools/src/index");
 
 // Inject this package as the extension's SDK through the cache hook sdk.ts
 // already uses for reloads: CI has no node_modules to resolve "@groeponline/fff-bun"
-// from pi-fff, and the finder stays the real native one either way.
+// from pi-tools, and the finder stays the real native one either way.
 (globalThis as Record<string, unknown>).__fffSdkPromiseGlobal = Promise.resolve({
   FileFinder,
 });
@@ -51,7 +51,7 @@ afterEach(() => {
 });
 
 function makeWorkspace(name: string): string {
-  const dir = mkdtempSync(join(tmpdir(), `pi-fff-native-${name}-`));
+  const dir = mkdtempSync(join(tmpdir(), `pi-tools-native-${name}-`));
   cleanups.push(() => rmSync(dir, { recursive: true, force: true }));
   writeFileSync(join(dir, "alpha.ts"), "export const alpha = 1;\n");
   writeFileSync(join(dir, "beta.ts"), "export const beta = 2;\n");
@@ -61,7 +61,7 @@ function makeWorkspace(name: string): string {
 }
 
 function makeDbPaths() {
-  const root = mkdtempSync(join(tmpdir(), "pi-fff-native-dbs-"));
+  const root = mkdtempSync(join(tmpdir(), "pi-tools-native-dbs-"));
   cleanups.push(() => rmSync(root, { recursive: true, force: true }));
   return { frecencyDbPath: join(root, "frecency"), historyDbPath: join(root, "history") };
 }
@@ -197,7 +197,7 @@ function startSession(
   };
 }
 
-describe("pi-fff: in-process double activation works (#760)", () => {
+describe("pi-tools: in-process double activation works (#760)", () => {
   test("two sessions in one process both search against the same dbs", async () => {
     const dbs = makeDbPaths();
     const first = startSession(makeWorkspace("session1"), dbs);

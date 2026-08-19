@@ -178,7 +178,7 @@ prepare-node: build-e2e sync-js-api
 
 test-bun: prepare-bun
 	cd packages/fff-bun && bun test test/
-	cd packages/pi-fff && bun test test/
+	cd packages/pi-tools && bun test test/
 
 # Same as prepare-bun but puts the compiled binary into the actual npm package location
 prepare-bun-packaged: prepare-bun
