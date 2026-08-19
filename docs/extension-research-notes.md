@@ -38,11 +38,11 @@ The public GroepOnline organization includes related Pi repositories: `pi-wishcr
 8. Add a package-provided Pi skill or documentation decision guide that tells agents when to choose `fffind`/`ffgrep` versus one-shot `rg`, `jq`, or session-log tooling. This keeps the extension focused while improving tool selection.
 9. Add an opt-in diagnostic command to export **non-sensitive** index statistics and tool latency to a local JSON file, making performance regressions reproducible without telemetry.
 
-## Upstream issue review
+## Issue backlog review
 
-The current FFF issue backlog includes Pi-extension items for direct-editable hashline headers, runtime detection under Bun-compiled hosts, multi-pattern match attribution, search inclusion controls, explicit ignored-path search, and auxiliary-index routing. These are more valuable near-term than new broad tooling because they improve correctness, host interoperability, and result quality.
+The current pi-tools issue backlog includes Pi-extension items for direct-editable hashline headers, runtime detection under Bun-compiled hosts, multi-pattern match attribution, search inclusion controls, explicit ignored-path search, and auxiliary-index routing. These are more valuable near-term than new broad tooling because they improve correctness, host interoperability, and result quality.
 
-Issue [#795](https://github.com/dmtrKovalenko/fff/issues/795) proposes adding deterministic `[path#TAG]` headers to `ffgrep` and `fffind` results for Oh My Pi compatibility. The tag can be derived from file bytes without session access, but Pi extensions cannot access the host's stricter seen-line provenance store. Therefore this is viable only as an opt-in compatibility formatter with a clearly documented limitation; it must not claim that strict host edit guards are satisfied.
+Deterministic `[path#TAG]` headers in `ffgrep` and `fffind` results can be derived from file bytes without session access, but Pi extensions cannot access the host's stricter seen-line provenance store. Therefore this is viable only as an opt-in compatibility formatter with a clearly documented limitation; it must not claim that strict host edit guards are satisfied.
 
 ## Prioritized implementation candidates
 
@@ -56,19 +56,11 @@ Issue [#795](https://github.com/dmtrKovalenko/fff/issues/795) proposes adding de
 | P2 | Native status widget and local diagnostics export | Improves observability without telemetry or a sidecar runtime. | Opt-in, local-only output. |
 
 
-## Repository identity constraint
-
-The public GitHub repository metadata reports `fork: true` and identifies `dmtrKovalenko/fff` as both `parent` and `source`. The repository is therefore still a GitHub-network fork even though its package scope, documentation, and organization are GroepOnline.
-
-GitHub’s fork relationship cannot be cleared by a commit, remote change, README edit, or ordinary repository setting. To remove the public fork lineage while retaining the `GroepOnline/pi-tools` address, the practical cutover is: preserve the current fork under a temporary archival name, create a **new independent** `GroepOnline/pi-tools` repository, push a locally prepared independent history and release configuration, then migrate issues, releases, links, and package metadata as needed. This cutover changes a public repository identity and requires explicit confirmation before the rename/create/push operation.
-
-Until that confirmation, the working copy can be made technically independent by removing the `upstream` remote from the final clone and by avoiding public fork language. The existing source history remains visible in any copied Git history; a brand-new root commit is the only way to omit that history completely, which trades off traceability and contributor attribution. The recommended default is an independent repository with a preserved, attributed commit history and a `THIRD_PARTY_NOTICES.md` file.
-
-## Additional GroepOnline and upstream findings
+## Additional GroepOnline findings
 
 `pi-wishcraft` shows a mature native Pi extension architecture: typed domain modules, a status-oriented UI, cached expensive data, bounded custom commands, input sanitization before terminal rendering, release documentation, a changelog, and an explicit roadmap. For pi-tools, the relevant pattern is a compact native status segment with cached scan information and sanitized local metadata—not queueing, autonomous background work, or broad editor ownership.
 
-Issue [#714](https://github.com/dmtrKovalenko/fff/issues/714) confirms that ignored paths inside the active workspace remain a deliberate design decision rather than a straightforward defect. A scoped auxiliary index for an explicitly named ignored file or directory is useful, but indiscriminate indexing of large ignored trees such as `node_modules` can be expensive. Any implementation should require an exact, concrete path; impose a scan budget; reuse a bounded auxiliary pool only when the root matches exactly; show scan progress; and preserve the default ignore-aware workspace search.
+Ignored paths inside the active workspace remain a deliberate design decision. A scoped auxiliary index for an explicitly named ignored file or directory is useful, but indiscriminate indexing of large ignored trees such as `node_modules` can be expensive. Any implementation should require an exact, concrete path; impose a scan budget; reuse a bounded auxiliary pool only when the root matches exactly; show scan progress; and preserve the default ignore-aware workspace search.
 
 ## Recommendation update
 

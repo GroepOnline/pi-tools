@@ -82,12 +82,11 @@ fn bigram_overlay_coherence_stress_base_edits_and_deletes() {
             let new_token = format!("EDITED_R{round}_{i:04}");
             write_file_with_token(base, name, &new_token);
             {
+                let path = base.join(name.as_str());
                 let mut guard = shared_picker.write().unwrap();
                 let picker = guard.as_mut().unwrap();
                 assert!(
-                    picker
-                        .handle_create_or_modify(base.join(name.clone()))
-                        .is_some(),
+                    picker.handle_create_or_modify(path).is_some(),
                     "round {round}: modify({name}) should succeed"
                 );
             }
@@ -1328,15 +1327,12 @@ fn wait_for_bigram(shared_picker: &SharedFilePicker) {
     let deadline = std::time::Instant::now() + Duration::from_secs(10);
     loop {
         std::thread::sleep(Duration::from_millis(50));
-        let ready = shared_picker
-            .read()
-            .ok()
-            .and_then(|guard| {
-                guard
-                    .as_ref()
-                    .map(|p| !p.is_scan_active() && p.bigram_index().is_some())
-            })
-            .unwrap_or(false);
+        let ready = match shared_picker.read() {
+            Ok(guard) => guard
+                .as_ref()
+                .is_some_and(|p| !p.is_scan_active() && p.bigram_index().is_some()),
+            Err(_) => false,
+        };
         if ready {
             break;
         }
@@ -1349,7 +1345,7 @@ fn wait_for_bigram(shared_picker: &SharedFilePicker) {
 
 fn stop_picker(shared_picker: &SharedFilePicker) {
     if let Ok(mut guard) = shared_picker.write() {
-        if let Some(ref mut picker) = *guard {
+        if let Some(picker) = guard.as_mut() {
             picker.stop_background_monitor();
         }
     }

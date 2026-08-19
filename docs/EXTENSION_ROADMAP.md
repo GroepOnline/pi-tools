@@ -34,9 +34,9 @@ The current extension already implements the core product: FFF-backed path searc
 
 ## Recommended next release sequence
 
-The first release should be intentionally narrow: apply and independently review the open SDK-fallback approach described in upstream PR #779, add its regression tests, and improve host diagnostics. The proposed change tries the alternative SDK only after the preferred import fails, retains the global reload cache, and is supported by a small targeted test suite. [7]
+The first release should be intentionally narrow: apply and independently review the SDK-fallback approach for Bun-compiled hosts, add its regression tests, and improve host diagnostics. The proposed change tries the alternative SDK only after the preferred import fails, retains the global reload cache, and is supported by a small targeted test suite.
 
-The second release should define the ignored-path safety contract before implementing it. The related proposal is valuable for agent workflows, but the current maintainers note the resource risk of broad scans such as dependency trees. [8] A concrete-path requirement, exact-root auxiliary finder, time/file budgets, cancellation, and a visible warning are non-negotiable for this phase.
+The second release should define the ignored-path safety contract before implementing it. A concrete-path requirement, exact-root auxiliary finder, time/file budgets, cancellation, and a visible warning are non-negotiable for this phase.
 
 The third release should focus on quality of results rather than quantity of tools. Compact output, per-file caps, stronger continuation guidance, and match attribution give agents enough information to read the correct file without expanding the permission or performance surface.
 
@@ -60,10 +60,18 @@ Package metadata should continue to point users to the GroepOnline package and r
 
 [1]: https://pi.dev/docs/latest/extensions "Pi Coding Agent — Extensions documentation"
 [2]: https://pi.dev/docs/latest/settings "Pi Coding Agent — Settings documentation"
-[3]: https://github.com/dmtrKovalenko/fff/issues "FFF open issues"
+[3]: https://github.com/GroepOnline/pi-tools/issues "GroepOnline pi-tools issues"
 [4]: https://github.com/GroepOnline/pi-wishcraft "GroepOnline pi-wishcraft"
 [5]: https://github.com/GroepOnline/pi-subagents-tui "Archived GroepOnline pi-subagents-tui"
 [6]: https://github.com/GroepOnline/pi-cli-search-tools "GroepOnline pi-cli-search-tools"
+<<<<<<< HEAD
 [7]: https://github.com/dmtrKovalenko/fff/pull/779 "FFF PR #779: SDK fallback for Bun-compiled hosts"
 [8]: https://github.com/dmtrKovalenko/fff/issues/714 "FFF issue #714: Explicit ignored-path search"
 [9]: https://pi.dev/packages/@groeponline/pi-tools "@groeponline/pi-tools package page"
+||||||| parent of bcf569d (fix: repair CI regressions and finish GroepOnline doc sweep)
+[7]: https://github.com/dmtrKovalenko/fff/pull/779 "FFF PR #779: SDK fallback for Bun-compiled hosts"
+[8]: https://github.com/dmtrKovalenko/fff/issues/714 "FFF issue #714: Explicit ignored-path search"
+[9]: https://pi.dev/packages/@groeponline/pi-fff "@groeponline/pi-fff package page"
+=======
+[9]: https://pi.dev/packages/@groeponline/pi-fff "@groeponline/pi-fff package page"
+>>>>>>> bcf569d (fix: repair CI regressions and finish GroepOnline doc sweep)
