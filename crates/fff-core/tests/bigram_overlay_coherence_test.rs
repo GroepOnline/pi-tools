@@ -85,7 +85,9 @@ fn bigram_overlay_coherence_stress_base_edits_and_deletes() {
                 let mut guard = shared_picker.write().unwrap();
                 let picker = guard.as_mut().unwrap();
                 assert!(
-                    picker.handle_create_or_modify(base.join(name.clone())).is_some(),
+                    picker
+                        .handle_create_or_modify(base.join(name.clone()))
+                        .is_some(),
                     "round {round}: modify({name}) should succeed"
                 );
             }
@@ -1329,7 +1331,11 @@ fn wait_for_bigram(shared_picker: &SharedFilePicker) {
         let ready = shared_picker
             .read()
             .ok()
-            .and_then(|guard| guard.as_ref().map(|p| !p.is_scan_active() && p.bigram_index().is_some()))
+            .and_then(|guard| {
+                guard
+                    .as_ref()
+                    .map(|p| !p.is_scan_active() && p.bigram_index().is_some())
+            })
             .unwrap_or(false);
         if ready {
             break;
