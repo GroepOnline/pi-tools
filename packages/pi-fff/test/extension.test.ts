@@ -65,18 +65,6 @@ const finderModule = {
 mock.module("@groeponline/fff-node", () => finderModule);
 mock.module("@groeponline/fff-bun", () => finderModule);
 
-mock.module("@earendil-works/pi-tui", () => ({
-  Text: class Text {
-    text: string;
-    constructor(text: string) {
-      this.text = text;
-    }
-    setText(text: string) {
-      this.text = text;
-    }
-  },
-}));
-
 const schema = (type: string) => (options?: unknown) => ({ type, options });
 
 mock.module("@sinclair/typebox", () => ({
