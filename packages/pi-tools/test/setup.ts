@@ -32,6 +32,5 @@ mock.module("@sinclair/typebox", () => {
   };
   return {
     Type: new Proxy({}, handler),
-    type TSchema {},
   };
 });
