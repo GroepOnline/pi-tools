@@ -848,7 +848,7 @@ fn bigram_overlay_coherence_full_lifecycle_seed_edit_commit_rescan_edit() {
 
     // Delete some files (pick indices near the end).
     let mut phase1_dead = Vec::new();
-    for (i, (name, token)) in repo_files.iter().enumerate().skip(195).take(5) {
+    for (_, (name, token)) in repo_files.iter().enumerate().skip(195).take(5) {
         let path = base.join(name);
         fs::remove_file(&path).unwrap();
         {
