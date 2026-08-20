@@ -6,13 +6,13 @@
 
 Typo-resistant path and content search, frequency-ranked file access, a background watcher, and a lightweight in-memory content index. Way faster than CLIs like ripgrep and fzf in any long-running process that searches more than once.
 
-**[GroepOnline/pi-tools](https://github.com/GroepOnline/pi-tools)** is GroepOnline's file search toolkit. The product we ship is the pi extension [`@groeponline/pi-fff`](#pi-agent-extension). The same repository also contains the Neovim plugin, MCP server, Node/Bun SDKs, C library, Python bindings, and Rust crates, so every frontend shares one Rust core.
+**[GroepOnline/pi-tools](https://github.com/GroepOnline/pi-tools)** is GroepOnline's file search toolkit. The product we ship is the pi extension [`@groeponline/pi-tools`](#pi-agent-extension). The same repository also contains the Neovim plugin, MCP server, Node/Bun SDKs, C library, Python bindings, and Rust crates, so every frontend shares one Rust core.
 
 ---
 
 ## Contents
 
-- [Pi agent extension](#pi-agent-extension) — `@groeponline/pi-fff`
+- [Pi agent extension](#pi-agent-extension) — `@groeponline/pi-tools`
 - [Packages](#packages) — what we publish
 - [Carried components](#carried-components) — MCP server, fff.nvim, Node/Bun SDK, Rust crate, C library, Python bindings
 - [Performance](#performance)
@@ -26,18 +26,18 @@ Typo-resistant path and content search, frequency-ranked file access, a backgrou
 A [pi](https://github.com/badlogic/pi-mono) extension that replaces the built-in `find` and `grep` tools with FFF and feeds the interactive editor's `@`-mention autocomplete from the frecency-ranked index.
 
 ```bash
-pi install npm:@groeponline/pi-fff
+pi install npm:@groeponline/pi-tools
 ```
 
 Project-local install:
 
 ```bash
-pi install -l npm:@groeponline/pi-fff
+pi install -l npm:@groeponline/pi-tools
 ```
 
 ### What it replaces
 
-| Built-in tool | pi-fff replacement | Improvement |
+| Built-in tool | pi-tools replacement | Improvement |
 |---|---|---|
 | `find` (spawns `fd`) | `fffind` (FFF `fileSearch`) | Fuzzy matching, frecency ranking, git-aware, pre-indexed |
 | `grep` (spawns `rg`) | `ffgrep` (FFF `grep`) | SIMD-accelerated, frecency-ordered, mmap-cached, no subprocess |
@@ -69,13 +69,13 @@ Env vars: `PI_FFF_MODE`, `FFF_FRECENCY_DB`, `FFF_HISTORY_DB`. Flags: `--fff-mode
 - `/fff-health`. Picker, frecency, and git integration status.
 - `/fff-rescan`. Force a rescan.
 
-Source: [`packages/pi-fff/`](./packages/pi-fff/). Full documentation: [`packages/pi-fff/README.md`](./packages/pi-fff/README.md).
+Source: [`packages/pi-tools/`](./packages/pi-tools/). Full documentation: [`packages/pi-tools/README.md`](./packages/pi-tools/README.md).
 
 ---
 
 ## Packages
 
-- **We publish** under the `@groeponline` npm scope: `@groeponline/pi-fff`, `@groeponline/fff-node`, `@groeponline/fff-bun`. Releases are cut from `v*` tags; see [`docs/RELEASE.md`](./docs/RELEASE.md).
+- **We publish** under the `@groeponline` npm scope: `@groeponline/pi-tools`, `@groeponline/fff-node`, `@groeponline/fff-bun`. Releases are cut from `v*` tags; see [`docs/RELEASE.md`](./docs/RELEASE.md).
 - **CI.** Build and publish runs on version tags and manual dispatch. The test matrix is Linux-only on push/PR and expands to the full 3-OS matrix on release tags.
 - **Native binaries.** The Node/Bun SDKs load `@ff-labs/fff-bin-*` platform packages from npm. We consume those packages; we do not republish them.
 
@@ -221,7 +221,7 @@ If you run one grep from a shell, `rg` is still the right tool. If you run dozen
 - `crates/fff-python` - Python bindings (maturin).
 - `packages/fff-node` - Node.js SDK (`@groeponline/fff-node`).
 - `packages/fff-bun` - Bun SDK (`@groeponline/fff-bun`).
-- `packages/pi-fff` - pi extension (`@groeponline/pi-fff`).
+- `packages/pi-tools` - pi extension (`@groeponline/pi-tools`).
 - `packages/fff-python` - Python package sources.
 - `packages/fff-bin-*` - Platform binary package layouts (`@ff-labs/fff-bin-*` on npm; consumed, not republished here).
 - `lua/` - Neovim plugin code. `doc/` - vimdoc.

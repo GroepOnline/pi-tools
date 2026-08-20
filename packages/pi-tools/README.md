@@ -1,10 +1,10 @@
-# @groeponline/pi-fff
+# @groeponline/pi-tools
 
 A [pi](https://github.com/badlogic/pi-mono) extension that replaces the built-in `find` and `grep` tools with [FFF](https://github.com/GroepOnline/pi-tools) — a Rust-native, SIMD-accelerated file finder with built-in memory.
 
 ## What it does
 
-| Built-in tool | pi-fff replacement | Improvement |
+| Built-in tool | pi-tools replacement | Improvement |
 |---|---|---|
 | `find` (spawns `fd`) | `fffind` (FFF `fileSearch`) | Fuzzy matching, frecency ranking, git-aware, pre-indexed |
 | `grep` (spawns `rg`) | `ffgrep` (FFF `grep`) | SIMD-accelerated, frecency-ordered, mmap-cached, no subprocess |
@@ -32,32 +32,32 @@ Requirements:
 **Via npm (recommended):**
 
 ```bash
-pi install npm:@groeponline/pi-fff
+pi install npm:@groeponline/pi-tools
 ```
 
 Project-local install:
 
 ```bash
-pi install -l npm:@groeponline/pi-fff
+pi install -l npm:@groeponline/pi-tools
 ```
 
 **Via git:**
 
 ```bash
-pi install git:github.com/GroepOnline/pi-tools/packages/pi-fff
+pi install git:github.com/GroepOnline/pi-tools/packages/pi-tools
 ```
 
 Pin to a release:
 
 ```bash
-pi install git:github.com/GroepOnline/pi-tools/packages/pi-fff@v0.10.5
+pi install git:github.com/GroepOnline/pi-tools/packages/pi-tools@v0.10.5
 ```
 
 ### Local development / manual install
 
 ```bash
 git clone https://github.com/GroepOnline/pi-tools.git
-cd pi-tools/packages/pi-fff
+cd pi-tools/packages/pi-tools
 npm install
 ```
 
@@ -65,14 +65,14 @@ Then add to your pi `settings.json`:
 
 ```json
 {
-  "extensions": ["/path/to/pi-tools/packages/pi-fff/src/index.ts"]
+  "extensions": ["/path/to/pi-tools/packages/pi-tools/src/index.ts"]
 }
 ```
 
 Or test directly:
 
 ```bash
-pi -e /path/to/pi-tools/packages/pi-fff/src/index.ts
+pi -e /path/to/pi-tools/packages/pi-tools/src/index.ts
 ```
 
 This extension registers FFF-powered tools (`fffind`, `ffgrep`, and optionally `fff-multi-grep`) alongside pi's built-in tools.
@@ -136,11 +136,11 @@ When a session resumes, its most recent `/fff-mode` selection takes precedence o
 
 ## Configuration
 
-For persistent global configuration, create `pi-fff.json` in pi's agent directory (`~/.pi/agent/pi-fff.json` by default; `PI_CODING_AGENT_DIR` is respected):
+For persistent global configuration, create `pi-tools.json` in pi's agent directory (`~/.pi/agent/pi-tools.json` by default; `PI_CODING_AGENT_DIR` is respected):
 
 ```json
 {
-  "$schema": "https://raw.githubusercontent.com/GroepOnline/pi-tools/main/packages/pi-fff/pi-fff.schema.json",
+  "$schema": "https://raw.githubusercontent.com/GroepOnline/pi-tools/main/packages/pi-tools/pi-tools.schema.json",
   "mode": "override",
   "frecencyDbPath": "/path/to/frecency",
   "historyDbPath": "/path/to/history",
