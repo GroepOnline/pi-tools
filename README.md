@@ -41,7 +41,7 @@ pi install -l npm:@groeponline/pi-fff
 |---|---|---|
 | `find` (spawns `fd`) | `fffind` (FFF `fileSearch`) | Fuzzy matching, frecency ranking, git-aware, pre-indexed |
 | `grep` (spawns `rg`) | `ffgrep` (FFF `grep`) | SIMD-accelerated, frecency-ordered, mmap-cached, no subprocess |
-| *(none)* | `fff-multi-grep` (FFF `multiGrep`) | OR-logic multi-pattern search via Aho-Corasick |
+| *(none)* | `fff-multi-grep` (FFF `multiGrep`, opt-in) | OR-logic multi-pattern search via Aho-Corasick |
 | `@` file autocomplete (fd-backed) | `@` file autocomplete (FFF-backed, default) | Fuzzy ranking from the FFF index and frecency |
 
 ### Modes
@@ -52,7 +52,9 @@ Three operating modes, switchable at runtime with `/fff-mode`:
 | --- | --- |
 | `tools-and-ui` (default) | Adds `ffgrep` and `fffind` tools, replaces `@`-mention autocomplete with FFF. |
 | `tools-only` | Only tool injection. Keeps pi's native editor autocomplete. |
-| `override` | Replaces pi's built-in `grep`, `find`, and `multi_grep` with FFF implementations. |
+| `override` | Replaces pi's built-in `grep` and `find` with FFF implementations. With `PI_FFF_MULTIGREP=1`, also registers `multi_grep`. |
+
+Set `PI_FFF_MULTIGREP=1` to opt in to `fff-multi-grep` (or `multi_grep` in `override` mode). Without it, only `ffgrep` and `fffind` are registered.
 
 Env vars: `PI_FFF_MODE`, `FFF_FRECENCY_DB`, `FFF_HISTORY_DB`. Flags: `--fff-mode`, `--fff-frecency-db`, `--fff-history-db`. The databases default to your existing fff.nvim ones when present, otherwise `~/.pi/agent/fff/`.
 

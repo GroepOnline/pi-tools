@@ -8,7 +8,7 @@ A [pi](https://github.com/badlogic/pi-mono) extension that replaces the built-in
 |---|---|---|
 | `find` (spawns `fd`) | `fffind` (FFF `fileSearch`) | Fuzzy matching, frecency ranking, git-aware, pre-indexed |
 | `grep` (spawns `rg`) | `ffgrep` (FFF `grep`) | SIMD-accelerated, frecency-ordered, mmap-cached, no subprocess |
-| *(none)* | `fff-multi-grep` (FFF `multiGrep`) | OR-logic multi-pattern search via Aho-Corasick |
+| *(none)* | `fff-multi-grep` (FFF `multiGrep`, opt-in) | OR-logic multi-pattern search via Aho-Corasick |
 | `@` file autocomplete (fd-backed) | `@` file autocomplete (FFF-backed, default) | Fuzzy ranking from FFF index/frecency |
 
 ### Key advantages over built-in tools
@@ -75,21 +75,21 @@ Or test directly:
 pi -e /path/to/pi-tools/packages/pi-fff/src/index.ts
 ```
 
-This extension registers FFF-powered tools (`fffind`, `ffgrep`, `fff-multi-grep`) alongside pi's built-in tools.
+This extension registers FFF-powered tools (`fffind`, `ffgrep`, and optionally `fff-multi-grep`) alongside pi's built-in tools.
 
 ## Tools
 
 ### `ffgrep`
 
-Search file contents. Smart case, plain text by default, regex optional.
+Search file contents. Smart case by default; auto-detects regex vs literal syntax.
 
 Parameters:
 - `pattern` — search text or regex
 - `path` — directory/file constraint (e.g. `src/`, `*.ts`)
-- `ignoreCase` — force case-insensitive
-- `literal` — treat as literal string (default: true)
+- `exclude` — exclude paths (comma, space, or array; leading `!` optional)
+- `caseSensitive` — force case-sensitive matching (default: smart-case)
 - `context` — context lines around matches
-- `limit` — max matches (default: 100)
+- `limit` — max matches (default: 20)
 - `cursor` — pagination cursor from previous result
 
 ### `fffind`
@@ -99,17 +99,17 @@ Fuzzy file name search. Frecency-ranked.
 Parameters:
 - `pattern` — fuzzy query (e.g. `main.ts`, `src/ config`)
 - `path` — directory constraint
-- `limit` — max results (default: 200)
+- `limit` — max results (default: 30)
 
 ### `fff-multi-grep`
 
-OR-logic multi-pattern content search. SIMD-accelerated Aho-Corasick.
+OR-logic multi-pattern content search. SIMD-accelerated Aho-Corasick. **Opt-in:** set `PI_FFF_MULTIGREP=1` before starting pi.
 
 Parameters:
 - `patterns` — array of literal patterns (OR logic)
 - `constraints` — file constraints (e.g. `*.{ts,tsx} !test/`)
 - `context` — context lines
-- `limit` — max matches (default: 100)
+- `limit` — max matches (default: 20)
 - `cursor` — pagination cursor
 
 ## Commands
@@ -120,9 +120,11 @@ Parameters:
 
 ## Modes
 
-- `tools-and-ui` (default): registers `fffind`, `ffgrep`, `fff-multi-grep` as additional tools + FFF-backed `@` autocomplete
+- `tools-and-ui` (default): registers `fffind` and `ffgrep` as additional tools + FFF-backed `@` autocomplete
 - `tools-only`: additional tools only; keep pi's default `@` autocomplete
-- `override`: replaces pi's built-in `find`, `grep` and adds `multi_grep` + FFF-backed `@` autocomplete
+- `override`: replaces pi's built-in `find` and `grep` + FFF-backed `@` autocomplete
+
+Set `PI_FFF_MULTIGREP=1` to also register `fff-multi-grep` (or `multi_grep` in `override` mode).
 
 Startup mode precedence:
 1. `--fff-mode <mode>` CLI flag

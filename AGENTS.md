@@ -10,7 +10,7 @@ Prefer Makefile commands over cargo/bun/npm where they exist.
 - `make lint` - Rust linting and analysis
 - `make format` - format all code
 - `make test` - Rust unit/integration tests
-- `make test-node` - Node SDK tests (requires built `libfff_c`)
+- `make test-node` - Node SDK tests (requires `libfff_c` to be built)
 - `bun test packages/pi-fff/test/` - pi extension tests (no native lib needed)
 - `npm run check:ci` in `packages/` - oxlint + oxfmt checks
 
