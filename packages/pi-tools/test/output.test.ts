@@ -30,9 +30,27 @@ describe("formatGrepOutput", () => {
   test("renders compact path-line-match rows without context", () => {
     const output = formatGrepOutput(result, true);
 
-    expect(output).toBe("src/example.ts:12: export function example() { return true; }");
+    expect(output).toBe("src/example.ts:12:export function example() { return true; }");
     expect(output).not.toContain("before");
     expect(output).not.toContain("after");
+  });
+
+  test("includes git annotations in compact rows", () => {
+    const output = formatGrepOutput(
+      {
+        items: [
+          {
+            relativePath: "src/example.ts",
+            lineNumber: 4,
+            lineContent: "const changed = true;",
+            gitStatus: "modified",
+          },
+        ],
+      } as never,
+      true,
+    );
+
+    expect(output).toBe("src/example.ts  [modified in git]:4:const changed = true;");
   });
 
   test("uses a stable empty-result message", () => {

@@ -4,13 +4,12 @@
 
 ### Added
 
-- Added runtime-preferred SDK loading with a Node/Bun fallback and the `FFF_SDK` override.
 - Added `ffgrep.maxMatchesPerFile` to keep a single generated or vendored file from dominating a result page.
 - Added `ffgrep.compact` for deterministic `path:line:match` output without context blocks.
 
 ### Tests
 
-- Added regression coverage for SDK candidate ordering, runtime overrides, fallback errors, and compact grep formatting.
+- Added regression coverage for compact grep formatting and `maxMatchesPerFile` clamping.
 
 ### Compatibility
 

@@ -31,6 +31,7 @@ const DEFAULT_FIND_LIMIT = 30;
 const GREP_PAGE_SIZE_MAX = 50;
 const GREP_CONTEXT_MAX = 20;
 const GREP_MAX_LINE_LENGTH = 500;
+const GREP_COMPACT_MAX_LINE_LENGTH = 240;
 const MENTION_MAX_RESULTS = 20;
 
 // Bound indexed grep work so a stalled search cannot consume the session.
@@ -146,7 +147,7 @@ export function formatGrepOutput(result: GrepResult, compact = false): string {
     return result.items
       .map(
         (match) =>
-          `${match.relativePath}:${match.lineNumber}: ${truncateLine(match.lineContent, 240)}`,
+          `${match.relativePath}${fffFileAnnotation(match)}:${match.lineNumber}:${truncateLine(match.lineContent, GREP_COMPACT_MAX_LINE_LENGTH)}`,
       )
       .join("\n");
   }
