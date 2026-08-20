@@ -7,6 +7,7 @@ type MockFinder = {
   isDestroyed: boolean;
   waitForScan: ReturnType<typeof mock>;
   mixedSearch: ReturnType<typeof mock>;
+  grep: ReturnType<typeof mock>;
   getScanProgress: ReturnType<typeof mock>;
   destroy: ReturnType<typeof mock>;
 };
@@ -14,6 +15,7 @@ type MockFinder = {
 const createCalls: unknown[] = [];
 let finders: MockFinder[] = [];
 let mixedSearchImpl: ((query: string, options: unknown) => unknown) | undefined;
+let grepImpl: ((query: string, options: unknown) => unknown) | undefined;
 let scanProgressImpl: (() => unknown) | undefined;
 
 function createMockFinder(): MockFinder {
@@ -43,6 +45,13 @@ function createMockFinder(): MockFinder {
           totalFiles: 0,
           totalDirs: 0,
         },
+      };
+    }),
+    grep: mock((query: string, options: unknown) => {
+      if (grepImpl) return grepImpl(query, options);
+      return {
+        ok: true,
+        value: { items: [], totalMatched: 0, totalFiles: 0 },
       };
     }),
     destroy: mock(function (this: MockFinder) {
@@ -190,6 +199,7 @@ beforeEach(() => {
   createCalls.length = 0;
   finders = [];
   mixedSearchImpl = undefined;
+  grepImpl = undefined;
   scanProgressImpl = undefined;
 
   for (const key of CONFIG_ENV_KEYS) delete process.env[key];
@@ -411,6 +421,100 @@ describe("pi-tools $HOME scan warning", () => {
 
     expect(setup.ctx.ui.notify).not.toHaveBeenCalled();
     expect(setup.ctx.ui.setStatus).not.toHaveBeenCalled();
+    await shutdown(setup);
+  });
+});
+
+describe("pi-tools grep maxMatchesPerFile", () => {
+  async function grepTool(mode = "override") {
+    const setup = await start(mode);
+    const tools = setup.pi.registerTool.mock.calls.map(([tool]) => tool);
+    const tool = tools.find((t) => t.name === "grep" || t.name === "ffgrep");
+    expect(tool).toBeDefined();
+    return { setup, tool };
+  }
+
+  async function runGrep(tool: any, params: Record<string, unknown>) {
+    return tool.execute("call-1", { pattern: "needle", ...params }, abortOptions());
+  }
+
+  test("defaults maxMatchesPerFile to the page size", async () => {
+    const { setup, tool } = await grepTool();
+
+    await runGrep(tool, {});
+
+    const [, options] = finders[0].grep.mock.calls[0];
+    expect(options.pageSize).toBe(20);
+    expect(options.maxMatchesPerFile).toBe(20);
+    await shutdown(setup);
+  });
+
+  test("clamps maxMatchesPerFile to the effective page size", async () => {
+    const { setup, tool } = await grepTool();
+
+    // Requesting 50 with the default page size of 20 clamps down to 20.
+    await runGrep(tool, { maxMatchesPerFile: 50 });
+
+    const [, options] = finders[0].grep.mock.calls[0];
+    expect(options.maxMatchesPerFile).toBe(20);
+    await shutdown(setup);
+  });
+
+  test("honours a smaller maxMatchesPerFile and floors fractional values", async () => {
+    const { setup, tool } = await grepTool();
+
+    await runGrep(tool, { limit: 40, maxMatchesPerFile: 3.9 });
+
+    const [, options] = finders[0].grep.mock.calls[0];
+    expect(options.pageSize).toBe(40);
+    expect(options.maxMatchesPerFile).toBe(3);
+    await shutdown(setup);
+  });
+
+  test("clamps values below one up to one", async () => {
+    const { setup, tool } = await grepTool();
+
+    await runGrep(tool, { maxMatchesPerFile: 0 });
+
+    const [, options] = finders[0].grep.mock.calls[0];
+    expect(options.maxMatchesPerFile).toBe(1);
+    await shutdown(setup);
+  });
+
+  test("propagates the clamped cap to the fuzzy fallback", async () => {
+    grepImpl = (_query, options) => {
+      // Exact pass returns nothing so the fuzzy fallback runs.
+      if ((options as { mode: string }).mode !== "fuzzy") {
+        return { ok: true, value: { items: [], totalMatched: 0, totalFiles: 0 } };
+      }
+      return {
+        ok: true,
+        value: {
+          items: [
+            {
+              relativePath: "src/example.ts",
+              lineNumber: 1,
+              lineContent: "needle",
+              contextBefore: [],
+              contextAfter: [],
+              gitStatus: "clean",
+            },
+          ],
+          totalMatched: 1,
+          totalFiles: 1,
+        },
+      };
+    };
+
+    const { setup, tool } = await grepTool();
+
+    await runGrep(tool, { maxMatchesPerFile: 5 });
+
+    const calls = finders[0].grep.mock.calls;
+    expect(calls).toHaveLength(2);
+    const [, fuzzyOptions] = calls[1];
+    expect(fuzzyOptions.mode).toBe("fuzzy");
+    expect(fuzzyOptions.maxMatchesPerFile).toBe(5);
     await shutdown(setup);
   });
 });

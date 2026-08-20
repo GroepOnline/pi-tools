@@ -759,7 +759,7 @@ export default function fffExtension(pi: ExtensionAPI) {
     maxMatchesPerFile: Type.Optional(
       Type.Number({
         description:
-          "Maximum matches returned from any one file (default follows limit, max 50)",
+          "Maximum matches returned from any one file (default follows limit, clamped to the page size which is min(limit, 50))",
       }),
     ),
     compact: Type.Optional(

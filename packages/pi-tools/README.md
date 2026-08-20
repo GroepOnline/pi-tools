@@ -68,7 +68,7 @@ Use `fffind` for **paths**. Use `ffgrep` when you know text that should occur in
 | `caseSensitive` | boolean, optional | Forces case-sensitive matching; omit it to keep smart-case behaviour. |
 | `context` | number, optional | Context lines before and after a match; range 0–20. |
 | `limit` | number, optional | Maximum matches in a page; default is 20. |
-| `maxMatchesPerFile` | number, optional | Caps matches from any single file; defaults to the page limit and is capped at 50. |
+| `maxMatchesPerFile` | number, optional | Caps matches from any single file; defaults to the page limit and is clamped to the effective page size (`min(limit, 50)`). |
 | `compact` | boolean, optional | Emits one `path:line:match` row per result and omits context blocks. Useful for dense agent-oriented output. |
 | `cursor` | string, optional | Opaque cursor returned by a previous result to request the next page. |
 
