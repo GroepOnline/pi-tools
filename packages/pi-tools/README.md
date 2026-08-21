@@ -1,202 +1,176 @@
 # @groeponline/pi-tools
 
-A [pi](https://github.com/badlogic/pi-mono) extension that replaces the built-in `find` and `grep` tools with [FFF](https://github.com/GroepOnline/pi-tools) — a Rust-native, SIMD-accelerated file finder with built-in memory.
+`@groeponline/pi-tools` is a [Pi](https://github.com/badlogic/pi-mono) extension for fast, local file discovery and content search. It adds FFF-powered search tools and can provide FFF-ranked `@` file completion in the interactive editor.
 
-## What it does
-
-| Built-in tool | pi-tools replacement | Improvement |
-|---|---|---|
-| `find` (spawns `fd`) | `fffind` (FFF `fileSearch`) | Fuzzy matching, frecency ranking, git-aware, pre-indexed |
-| `grep` (spawns `rg`) | `ffgrep` (FFF `grep`) | SIMD-accelerated, frecency-ordered, mmap-cached, no subprocess |
-| *(none)* | `fff-multi-grep` (FFF `multiGrep`, opt-in) | OR-logic multi-pattern search via Aho-Corasick |
-| `@` file autocomplete (fd-backed) | `@` file autocomplete (FFF-backed, default) | Fuzzy ranking from FFF index/frecency |
-
-### Key advantages over built-in tools
-
-- **No subprocess spawning** — FFF is a Rust native library called through the Node binding. No `fd`/`rg` process per call.
-- **Pre-indexed** — files are indexed in the background at session start. Searches are instant.
-- **Frecency ranking** — files you access often rank higher. Learns across sessions.
-- **Query history** — remembers which files were selected for which queries. Combo boost.
-- **Git-aware** — modified/staged/untracked files are boosted in results.
-- **Smart case** — case-insensitive when query is all lowercase, case-sensitive otherwise.
-- **Fuzzy file search** — `find` uses fuzzy matching, not glob-only. Typo-tolerant.
-- **Cursor pagination** — grep results include a cursor for fetching the next page.
+The extension is designed for repeated exploration of a workspace. It builds a local index in the background, then uses that index for fuzzy path matching and content search. File-use history and local Git state can improve result ranking when available.
 
 ## Install
 
-Requirements:
-- pi
-
-### Install as a pi package
-
-**Via npm (recommended):**
+Install globally:
 
 ```bash
 pi install npm:@groeponline/pi-tools
 ```
 
-Project-local install:
+Install for one project only:
 
 ```bash
 pi install -l npm:@groeponline/pi-tools
 ```
 
-**Via git:**
+Verify the package source, current version, and supported Pi metadata at [pi.dev/packages/@groeponline/pi-tools](https://pi.dev/packages/@groeponline/pi-tools).
+
+## Choose a mode
+
+The default mode is deliberately additive: it gives an agent access to FFF tools without changing the names of Pi’s standard tools.
+
+| Mode | Registered search tools | `@` completion | Recommended use |
+| --- | --- | --- | --- |
+| `tools-and-ui` | `fffind`, `ffgrep` | FFF-backed | Default for most interactive sessions. |
+| `tools-only` | `fffind`, `ffgrep` | Pi default | Use when another extension manages autocomplete. |
+| `override` | `find`, `grep` | FFF-backed | Use only when replacing Pi’s standard search tools is intentional. |
+
+Set the mode at startup:
 
 ```bash
-pi install git:github.com/GroepOnline/pi-tools/packages/pi-tools
+pi --fff-mode tools-and-ui
+# or
+PI_FFF_MODE=override pi
 ```
 
-Pin to a release:
+The resolution order is **flag → environment variable → global configuration → default**. A mode changed with `/fff-mode` is retained in the session. Moving into or out of `override` requires `/reload`, because Pi must register the tool names again.
 
-```bash
-pi install git:github.com/GroepOnline/pi-tools/packages/pi-tools@v0.10.5
-```
-
-### Local development / manual install
-
-```bash
-git clone https://github.com/GroepOnline/pi-tools.git
-cd pi-tools/packages/pi-tools
-npm install
-```
-
-Then add to your pi `settings.json`:
-
-```json
-{
-  "extensions": ["/path/to/pi-tools/packages/pi-tools/src/index.ts"]
-}
-```
-
-Or test directly:
-
-```bash
-pi -e /path/to/pi-tools/packages/pi-tools/src/index.ts
-```
-
-This extension registers FFF-powered tools (`fffind`, `ffgrep`, and optionally `fff-multi-grep`) alongside pi's built-in tools.
-
-## Tools
-
-### `ffgrep`
-
-Search file contents. Smart case by default; auto-detects regex vs literal syntax.
-
-Parameters:
-- `pattern` — search text or regex
-- `path` — directory/file constraint (e.g. `src/`, `*.ts`)
-- `exclude` — exclude paths (comma, space, or array; leading `!` optional)
-- `caseSensitive` — force case-sensitive matching (default: smart-case)
-- `context` — context lines around matches
-- `limit` — max matches (default: 20)
-- `cursor` — pagination cursor from previous result
+## Search tools
 
 ### `fffind`
 
-Fuzzy file name search. Frecency-ranked.
+`fffind` searches workspace-relative paths with fuzzy matching. It is suitable for locating files from an incomplete filename, a concept, or a path fragment. Results are ranked by the local engine; use a `path` constraint for a directory, exact filename, or glob and use `exclude` to remove noise.
 
-Parameters:
-- `pattern` — fuzzy query (e.g. `main.ts`, `src/ config`)
-- `path` — directory constraint
-- `limit` — max results (default: 30)
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `pattern` | string | Fuzzy search terms, for example `config`, `src auth`, or `main.ts`. |
+| `path` | string, optional | Directory prefix, filename, or glob such as `src/`, `main.rs`, or `src/**/*.ts`. |
+| `exclude` | string or string array, optional | Paths or globs to omit, such as `test/`, `*.min.js`, or `vendor/`. |
+| `limit` | number, optional | Results per page; default is 30. |
+| `cursor` | string, optional | Opaque cursor returned by a previous result to request the next page. |
 
-### `fff-multi-grep`
+Use `fffind` for **paths**. Use `ffgrep` when you know text that should occur inside a file.
 
-OR-logic multi-pattern content search. SIMD-accelerated Aho-Corasick. **Opt-in:** set `PI_FFF_MULTIGREP=1` before starting pi.
+### `ffgrep`
 
-Parameters:
-- `patterns` — array of literal patterns (OR logic)
-- `constraints` — file constraints (e.g. `*.{ts,tsx} !test/`)
-- `context` — context lines
-- `limit` — max matches (default: 20)
-- `cursor` — pagination cursor
+`ffgrep` searches file content with smart-case behaviour: a lowercase pattern is case-insensitive; a pattern containing uppercase characters is case-sensitive. Patterns with valid regular-expression syntax are searched as regular expressions, while other patterns are treated as literal text. If a plain-text search has no exact result, the extension may show useful fuzzy alternatives.
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `pattern` | string | Text or regular expression to find. |
+| `path` | string, optional | Directory prefix, filename, or glob that limits the search. |
+| `exclude` | string or string array, optional | Paths or globs to omit from the search. |
+| `caseSensitive` | boolean, optional | Forces case-sensitive matching; omit it to keep smart-case behaviour. |
+| `context` | number, optional | Context lines before and after a match; range 0–20. |
+| `limit` | number, optional | Maximum matches in a page; default is 20. |
+| `maxMatchesPerFile` | number, optional | Caps matches from any single file; defaults to the page limit and is clamped to the effective page size (`min(limit, 50)`). |
+| `compact` | boolean, optional | Emits one `path:line:match` row per result and omits context blocks. Useful for dense agent-oriented output. |
+| `cursor` | string, optional | Opaque cursor returned by a previous result to request the next page. |
+
+Use a concrete substring, identifier, or expression. A wildcard-only expression such as `.*` is rejected because it is not an efficient way to read an entire file. Keep the default grouped output when context matters; use `compact: true` when the next action only needs stable path-and-line references. Set `maxMatchesPerFile` when a generated or vendored file could otherwise dominate the page. Both options are additive and leave existing defaults unchanged.
+
+### Optional multi-pattern search
+
+Set `PI_FFF_MULTIGREP=1` before starting Pi to enable the experimental `fff-multi-grep` tool. It searches for **any** of several literal patterns in one request and is useful when an agent must check known naming variants together.
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `patterns` | string array | One or more literal alternatives; matching uses OR logic. |
+| `constraints` | string, optional | File filter such as `*.{ts,tsx} !test/`. |
+| `context` | number, optional | Context lines before and after a match; range 0–20. |
+| `limit` | number, optional | Maximum matches in a page; default is 20. |
+| `cursor` | string, optional | Opaque cursor returned by a previous result to request the next page. |
+
+The tool is opt-in while its interaction pattern is evaluated. Do not depend on it for a workflow that requires stable default tool availability.
 
 ## Commands
 
-- `/fff-health` — show FFF status (indexed files, git info, frecency/history DB status)
-- `/fff-rescan` — trigger a file rescan
-- `/fff-mode <mode>` — switch mode (tool name changes require `/reload`)
+| Command | Purpose |
+| --- | --- |
+| `/fff-mode [tools-and-ui \| tools-only \| override]` | Shows the current mode or records a mode for the current session. |
+| `/fff-health` | Displays the engine version, mode, Git integration, index status, persistence status, and active scan progress. |
+| `/fff-rescan` | Requests a new file scan for the active workspace. |
 
-## Modes
+## Persistent configuration
 
-- `tools-and-ui` (default): registers `fffind` and `ffgrep` as additional tools + FFF-backed `@` autocomplete
-- `tools-only`: additional tools only; keep pi's default `@` autocomplete
-- `override`: replaces pi's built-in `find` and `grep` + FFF-backed `@` autocomplete
-
-Set `PI_FFF_MULTIGREP=1` to also register `fff-multi-grep` (or `multi_grep` in `override` mode).
-
-Startup mode precedence:
-1. `--fff-mode <mode>` CLI flag
-2. `PI_FFF_MODE=<mode>` environment variable
-3. `mode` in the global config file
-4. default (`tools-and-ui`)
-
-When a session resumes, its most recent `/fff-mode` selection takes precedence over the startup resolution above. Switching to or from `override` takes effect after `/reload`, when the tools are registered again.
-
-## Configuration
-
-For persistent global configuration, create `pi-tools.json` in pi's agent directory (`~/.pi/agent/pi-tools.json` by default; `PI_CODING_AGENT_DIR` is respected):
+Create `pi-tools.json` in Pi’s agent directory. The default location is `~/.pi/agent/pi-tools.json`; `PI_CODING_AGENT_DIR` changes the base directory.
 
 ```json
 {
   "$schema": "https://raw.githubusercontent.com/GroepOnline/pi-tools/main/packages/pi-tools/pi-tools.schema.json",
-  "mode": "override",
-  "frecencyDbPath": "/path/to/frecency",
-  "historyDbPath": "/path/to/history",
+  "mode": "tools-and-ui",
   "enableFsRootScanning": false,
   "enableHomeDirScanning": true
 }
 ```
 
-All fields are optional:
+| Field | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `$schema` | string | None | Enables editor validation and completion. |
+| `mode` | string | `tools-and-ui` | One of `tools-and-ui`, `tools-only`, or `override`. |
+| `frecencyDbPath` | string | Auto-resolved | Location for file-use ranking data. |
+| `historyDbPath` | string | Auto-resolved | Location for query-selection history. |
+| `enableFsRootScanning` | boolean | `false` | Explicitly allows scans started from `/`. |
+| `enableHomeDirScanning` | boolean | `true` | Allows scanning when Pi starts in the home directory. |
 
-| Field | Type | Default |
-|---|---|---|
-| `$schema` | non-empty string | none |
-| `mode` | `tools-and-ui`, `tools-only`, or `override` | `tools-and-ui` |
-| `frecencyDbPath` | non-empty string | See [Data](#data) |
-| `historyDbPath` | non-empty string | See [Data](#data) |
-| `enableFsRootScanning` | boolean | `false` |
-| `enableHomeDirScanning` | boolean | `true` |
+Malformed configuration, unknown fields, and invalid values prevent the extension from loading and identify the configuration path in the error. `/fff-mode` changes session state only; it does not edit this file.
 
-CLI flags take precedence over environment variables, which take precedence over this file. A missing file is ignored. Malformed JSON, unknown fields, and invalid values stop the extension from loading and report the file path and error. `/fff-mode` changes the current session; it does not edit this file.
+## Database resolution
 
-The file is global only. Project-level config cannot safely control tool names because pi decides which tools an extension registers before project configuration can be trusted.
+Frecency and history paths resolve independently in the following order:
 
-## Flags
+1. The matching Pi flag: `--fff-frecency-db` or `--fff-history-db`.
+2. The matching environment variable: `FFF_FRECENCY_DB` or `FFF_HISTORY_DB`.
+3. The matching global configuration value: `frecencyDbPath` or `historyDbPath`.
+4. A compatible existing local Neovim FFF database, when available.
+5. A Pi-local directory created on demand at `$PI_CODING_AGENT_DIR/fff/{frecency,history}`; by default this is `~/.pi/agent/fff/{frecency,history}`.
 
-- `--fff-mode <mode>` — set mode (see above)
-- `--fff-frecency-db <path>` — path to frecency database (also: `FFF_FRECENCY_DB` env). Optional; see [Data](#data) for the default.
-- `--fff-history-db <path>` — path to query history database (also: `FFF_HISTORY_DB` env). Optional; see [Data](#data) for the default.
-- `--fff-enable-root-scan` — allow indexing when launched from `/` (also: `FFF_ENABLE_ROOT_SCAN=1` env). FFF refuses to init at the filesystem root by default.
-- `--fff-enable-home-scan` — index the home directory when launched from `$HOME` (also: `FFF_ENABLE_HOME_SCAN` env). Enabled by default. Disable with `--fff-enable-home-scan=false` or `FFF_ENABLE_HOME_SCAN=0` if your `$HOME` contains huge trees (toolchains, kernel sources, build outputs) that make the background index run for a long time. When launched from `$HOME` with this enabled, pi shows a warning that the whole home tree is being indexed.
+The extension reads local ranking data but does not record the agent’s searches in an existing Neovim history database. If a database is unavailable, search remains usable without persisted ranking data and Pi displays a warning.
 
-## Data
+## Scanning scope and resource use
 
-FFF uses two LMDB databases:
-- frecency database - file access frequency/recency, used to rank results
-- history database - query-to-file selection history
+Scanning the filesystem root is disabled by default. Scanning from the home directory is enabled by default, because it is a normal Pi starting location, but a large home tree can take time and CPU to index.
 
-Each path is resolved independently, in this order:
+```bash
+pi --fff-enable-home-scan=false
+# or
+FFF_ENABLE_HOME_SCAN=0 pi
+```
 
-1. CLI flag — `--fff-frecency-db` / `--fff-history-db`
-2. Env var — `FFF_FRECENCY_DB` / `FFF_HISTORY_DB`
-3. Global config — `frecencyDbPath` / `historyDbPath`
-4. An existing [fff.nvim](https://github.com/GroepOnline/pi-tools) database, so pi reuses the frecency you built up in your editor:
-   - frecency: `$XDG_CACHE_HOME/nvim/fff_nvim`
-   - history: `$XDG_DATA_HOME/nvim/fff_queries`
-   - `XDG_CACHE_HOME` defaults to `~/.cache` and `XDG_DATA_HOME` to `~/.local/share`; on Windows both fall back under `%LOCALAPPDATA%\nvim-data`. Only directories count — a plain file at those paths is ignored.
-5. pi-local directory, created on demand — `$PI_CODING_AGENT_DIR/fff/{frecency,history}`, defaulting to `~/.pi/agent/fff/{frecency,history}`
+Use `--fff-enable-root-scan` or `FFF_ENABLE_ROOT_SCAN=1` only when indexing from `/` is explicitly intended.
 
-The extension only reads these databases; it never records the agent's own searches into your Neovim history. If a database cannot be opened, the finder starts without persistence and pi shows a warning instead of failing.
+## Privacy and security
 
-No project files are uploaded anywhere by this extension. It runs locally and only uses the configured LLM through pi itself.
+The extension runs locally in the Pi process. It does not implement network calls, telemetry, or credential handling. Search-state directories and optional database paths remain on the local machine.
 
-## Security
+As with every Pi extension, review the package source and its dependencies before use. The published source, issue tracker, and release context are available from the [GroepOnline repository](https://github.com/GroepOnline/pi-tools).
 
-- No shell execution
-- No network calls in the extension code
-- No telemetry
-- No credential handling beyond whatever pi and your configured model provider already do
-- Search state is stored locally under `~/.pi/agent/fff/`
+## Development
+
+For a source checkout, work from this package directory:
+
+```bash
+npm install
+npm run typecheck
+bun test test/
+```
+
+Workspace formatting and lint checks run from `packages/`:
+
+```bash
+npm run check:ci
+```
+
+See the repository-level [development guidance](../../AGENTS.md) for maintainership requirements.
+
+## References
+
+[1]: https://pi.dev/packages/@groeponline/pi-tools "@groeponline/pi-tools on pi.dev"
+[2]: https://github.com/GroepOnline/pi-tools "GroepOnline/pi-tools repository"
+
+[1] [2]
