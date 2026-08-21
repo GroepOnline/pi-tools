@@ -31,6 +31,7 @@ const DEFAULT_FIND_LIMIT = 30;
 const GREP_PAGE_SIZE_MAX = 50;
 const GREP_CONTEXT_MAX = 20;
 const GREP_MAX_LINE_LENGTH = 500;
+const GREP_COMPACT_MAX_LINE_LENGTH = 240;
 const MENTION_MAX_RESULTS = 20;
 
 // Bound indexed grep work so a stalled search cannot consume the session.
@@ -139,8 +140,17 @@ export function fffFileAnnotation(item: {
 }
 
 // Preserve native ordering; re-sorting would discard engine ranking.
-function formatGrepOutput(result: GrepResult): string {
+export function formatGrepOutput(result: GrepResult, compact = false): string {
   if (result.items.length === 0) return "No matches found";
+
+  if (compact) {
+    return result.items
+      .map(
+        (match) =>
+          `${match.relativePath}${fffFileAnnotation(match)}:${match.lineNumber}:${truncateLine(match.lineContent, GREP_COMPACT_MAX_LINE_LENGTH)}`,
+      )
+      .join("\n");
+  }
 
   const lines: string[] = [];
   let currentFile = "";
@@ -747,6 +757,17 @@ export default function fffExtension(pi: ExtensionAPI) {
         description: `Max matches (default ${DEFAULT_GREP_LIMIT})`,
       }),
     ),
+    maxMatchesPerFile: Type.Optional(
+      Type.Number({
+        description:
+          "Maximum matches returned from any one file (default follows limit, clamped to the page size which is min(limit, 50))",
+      }),
+    ),
+    compact: Type.Optional(
+      Type.Boolean({
+        description: "Return one path:line:match row per result and omit context blocks",
+      }),
+    ),
     cursor: Type.Optional(
       Type.String({ description: "Pagination cursor from previous result" }),
     ),
@@ -759,6 +780,8 @@ export default function fffExtension(pi: ExtensionAPI) {
       `${names.grep}: prefer bare identifiers as patterns. Literal queries are most efficient.`,
       `${names.grep}: use path for include ('src/', '*.ts') and exclude for noise ('test/,*.min.js').`,
       `${names.grep}: caseSensitive: true when you need exact case (smart-case otherwise).`,
+      `${names.grep}: use compact: true for a dense path:line result list when context is not needed.`,
+      `${names.grep}: use maxMatchesPerFile to prevent one generated file from dominating the result page.`,
       `${names.grep}: after 1-2 greps, read the top match instead of more greps.`,
     ],
     parameters: grepSchema,
@@ -771,8 +794,11 @@ export default function fffExtension(pi: ExtensionAPI) {
 
       const picker = aux ? aux.finder : await ensureFinder(activeCwd);
       const effectiveLimit = Math.max(1, params.limit ?? DEFAULT_GREP_LIMIT);
-      // Cap both total and per-file matches to honour the requested limit.
       const pageSize = Math.min(effectiveLimit, GREP_PAGE_SIZE_MAX);
+      const maxMatchesPerFile = Math.min(
+        pageSize,
+        Math.max(1, Math.floor(params.maxMatchesPerFile ?? pageSize)),
+      );
       const context = clampContext(params.context);
       const query = aux
         ? aux.query
@@ -816,7 +842,7 @@ export default function fffExtension(pi: ExtensionAPI) {
       const grepResult = picker.grep(query, {
         mode,
         smartCase,
-        maxMatchesPerFile: pageSize,
+        maxMatchesPerFile,
         pageSize,
         cursor: (params.cursor ? getCursor(params.cursor) : null) ?? null,
         beforeContext: context,
@@ -844,7 +870,7 @@ export default function fffExtension(pi: ExtensionAPI) {
         const fuzzy = picker.grep(fuzzyQuery, {
           mode: "fuzzy",
           smartCase,
-          maxMatchesPerFile: pageSize,
+          maxMatchesPerFile,
           pageSize,
           cursor: null,
           beforeContext: 0,
@@ -859,7 +885,7 @@ export default function fffExtension(pi: ExtensionAPI) {
         }
       }
 
-      let output = formatGrepOutput(result);
+      let output = formatGrepOutput(result, params.compact === true);
       const notices: string[] = [];
       if (result.regexFallbackError) {
         notices.push(`Invalid regex: ${result.regexFallbackError}, used literal match`);

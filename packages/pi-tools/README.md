@@ -68,9 +68,11 @@ Use `fffind` for **paths**. Use `ffgrep` when you know text that should occur in
 | `caseSensitive` | boolean, optional | Forces case-sensitive matching; omit it to keep smart-case behaviour. |
 | `context` | number, optional | Context lines before and after a match; range 0–20. |
 | `limit` | number, optional | Maximum matches in a page; default is 20. |
+| `maxMatchesPerFile` | number, optional | Caps matches from any single file; defaults to the page limit and is clamped to the effective page size (`min(limit, 50)`). |
+| `compact` | boolean, optional | Emits one `path:line:match` row per result and omits context blocks. Useful for dense agent-oriented output. |
 | `cursor` | string, optional | Opaque cursor returned by a previous result to request the next page. |
 
-Use a concrete substring, identifier, or expression. A wildcard-only expression such as `.*` is rejected because it is not an efficient way to read an entire file.
+Use a concrete substring, identifier, or expression. A wildcard-only expression such as `.*` is rejected because it is not an efficient way to read an entire file. Keep the default grouped output when context matters; use `compact: true` when the next action only needs stable path-and-line references. Set `maxMatchesPerFile` when a generated or vendored file could otherwise dominate the page. Both options are additive and leave existing defaults unchanged.
 
 ### Optional multi-pattern search
 
