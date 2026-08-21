@@ -82,12 +82,11 @@ fn bigram_overlay_coherence_stress_base_edits_and_deletes() {
             let new_token = format!("EDITED_R{round}_{i:04}");
             write_file_with_token(base, name, &new_token);
             {
+                let path = base.join(name.as_str());
                 let mut guard = shared_picker.write().unwrap();
                 let picker = guard.as_mut().unwrap();
                 assert!(
-                    picker
-                        .handle_create_or_modify(base.join(name.clone()))
-                        .is_some(),
+                    picker.handle_create_or_modify(path).is_some(),
                     "round {round}: modify({name}) should succeed"
                 );
             }
@@ -1328,15 +1327,12 @@ fn wait_for_bigram(shared_picker: &SharedFilePicker) {
     let deadline = std::time::Instant::now() + Duration::from_secs(10);
     loop {
         std::thread::sleep(Duration::from_millis(50));
-        let ready = shared_picker
-            .read()
-            .ok()
-            .and_then(|guard| {
-                guard
-                    .as_ref()
-                    .map(|p| !p.is_scan_active() && p.bigram_index().is_some())
-            })
-            .unwrap_or(false);
+        let ready = match shared_picker.read() {
+            Ok(guard) => guard
+                .as_ref()
+                .is_some_and(|p| !p.is_scan_active() && p.bigram_index().is_some()),
+            Err(_) => false,
+        };
         if ready {
             break;
         }
@@ -1349,7 +1345,7 @@ fn wait_for_bigram(shared_picker: &SharedFilePicker) {
 
 fn stop_picker(shared_picker: &SharedFilePicker) {
     if let Ok(mut guard) = shared_picker.write() {
-        if let Some(ref mut picker) = *guard {
+        if let Some(picker) = guard.as_mut() {
             picker.stop_background_monitor();
         }
     }
@@ -1643,6 +1639,156 @@ fn bigram_overlay_coherence_fuzzy_grep_finds_overflow_files() {
             "BUG: fuzzy grep should find overflow file content but bigram \
              prefiltering drops overflow files whose index exceeds the \
              candidate bitset length"
+        );
+    }
+
+    stop_picker(&shared_picker);
+}
+
+// ===================================================================
+// Group 8: Direct coverage for the refactored test-helper functions
+// (`wait_for_bigram`, `stop_picker`, and the pre-computed-owned-path
+// call pattern used against `handle_create_or_modify`). Every test
+// above already exercises these helpers indirectly on a 200-file
+// realistic repo; these tests isolate the helpers themselves on
+// minimal repos so a regression in the helper logic fails here first,
+// quickly, and without the noise of a full stress scenario.
+// ===================================================================
+
+/// `wait_for_bigram` should return promptly once a picker has been
+/// published to the shared slot and its background scan has produced a
+/// bigram index. Exercises the `Ok(guard) => guard.as_ref().is_some_and(..)`
+/// arm of the refactored match.
+#[test]
+fn wait_for_bigram_returns_once_scan_and_index_are_ready() {
+    let tmp = TempDir::new().unwrap();
+    let base = tmp.path();
+
+    write_file_with_token(base, "a.rs", "TOK_A");
+    write_file_with_token(base, "b.rs", "TOK_B");
+    write_file_with_token(base, "c.rs", "TOK_C");
+    git_init_and_commit(base);
+
+    let (shared_picker, _shared_frecency) = make_picker(base);
+
+    // Must not panic or time out.
+    wait_for_bigram(&shared_picker);
+
+    {
+        let guard = shared_picker.read().unwrap();
+        let picker = guard.as_ref().unwrap();
+        assert!(!picker.is_scan_active(), "scan should have finished");
+        assert!(picker.bigram_index().is_some(), "bigram index should exist");
+        assert!(
+            grep_count(picker, "TOK_B") >= 1,
+            "seeded token should be findable once wait_for_bigram returns"
+        );
+    }
+
+    stop_picker(&shared_picker);
+}
+
+/// `wait_for_bigram` must keep waiting -- and eventually time out with the
+/// documented panic message -- when the shared slot never receives a
+/// picker. This exercises the `guard.as_ref()` == `None` branch of the
+/// `is_some_and` chain (as opposed to `Err(_)`, which the current
+/// `SharedFilePicker::read()` implementation never produces).
+#[test]
+#[should_panic(expected = "Timed out waiting for bigram build")]
+fn wait_for_bigram_times_out_when_picker_never_published() {
+    let shared_picker = SharedFilePicker::default();
+    wait_for_bigram(&shared_picker);
+}
+
+/// `stop_picker` must be a no-op (not panic) when the shared slot has
+/// never held a picker. Covers the `guard.as_mut()` == `None` arm of the
+/// refactored `if let Some(picker) = guard.as_mut()`.
+#[test]
+fn stop_picker_is_noop_on_empty_shared_picker() {
+    let shared_picker = SharedFilePicker::default();
+
+    stop_picker(&shared_picker);
+    // Calling it again on the still-empty slot must also be safe.
+    stop_picker(&shared_picker);
+
+    assert!(shared_picker.read().unwrap().is_none());
+}
+
+/// `stop_picker` stops a live picker's background monitor and is safe to
+/// call more than once on the same picker, which is exactly the pattern
+/// every stress test in this file relies on at teardown.
+#[test]
+fn stop_picker_stops_live_picker_and_is_idempotent() {
+    let tmp = TempDir::new().unwrap();
+    let base = tmp.path();
+
+    write_file_with_token(base, "a.rs", "TOK_A");
+    git_init_and_commit(base);
+
+    let (shared_picker, _shared_frecency) = make_picker(base);
+    wait_for_bigram(&shared_picker);
+
+    stop_picker(&shared_picker);
+    // Second call on the same (now-stopped) picker must not panic.
+    stop_picker(&shared_picker);
+
+    // stop_picker only stops the background watcher; the picker itself
+    // stays in the shared slot.
+    assert!(shared_picker.read().unwrap().is_some());
+}
+
+/// Mirrors the refactor in `bigram_overlay_coherence_stress_base_edits_and_deletes`:
+/// compute the target path once, as an owned `PathBuf`, *before* taking
+/// the write lock, then hand it to `handle_create_or_modify` by value
+/// instead of by reference. Confirms the owned-path call site behaves
+/// identically to the previous `base.join(name.clone())` inline call.
+#[test]
+fn handle_create_or_modify_accepts_precomputed_owned_path() {
+    let tmp = TempDir::new().unwrap();
+    let base = tmp.path();
+
+    let name = "editable.rs".to_string();
+    write_file_with_token(base, &name, "ORIGINAL_TOKEN");
+    git_init_and_commit(base);
+
+    let (shared_picker, _shared_frecency) = make_picker(base);
+    wait_for_bigram(&shared_picker);
+
+    {
+        let guard = shared_picker.read().unwrap();
+        let picker = guard.as_ref().unwrap();
+        assert!(grep_count(picker, "ORIGINAL_TOKEN") >= 1);
+    }
+
+    // Sleep so mtime advances past the scan snapshot, same as the stress
+    // test does before it starts editing files.
+    std::thread::sleep(Duration::from_millis(1100));
+
+    write_file_with_token(base, &name, "UPDATED_TOKEN");
+
+    // Compute the owned path before acquiring the lock, then move it
+    // into the call -- the exact pattern introduced by the refactor.
+    let path = base.join(name.as_str());
+    {
+        let mut guard = shared_picker.write().unwrap();
+        let picker = guard.as_mut().unwrap();
+        assert!(
+            picker.handle_create_or_modify(path).is_some(),
+            "modify with a precomputed owned path should succeed"
+        );
+    }
+
+    {
+        let guard = shared_picker.read().unwrap();
+        let picker = guard.as_ref().unwrap();
+        assert!(
+            grep_count(picker, "UPDATED_TOKEN") >= 1,
+            "updated token should be findable after the owned-path call"
+        );
+        assert_eq!(
+            grep_count(picker, "ORIGINAL_TOKEN"),
+            0,
+            "original token should no longer be findable"
         );
     }
 
