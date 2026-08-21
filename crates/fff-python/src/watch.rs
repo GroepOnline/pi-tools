@@ -3,6 +3,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 use fff::{SharedFilePicker, WatchId};
 use pyo3::prelude::*;
+use pyo3::types::PyAny;
 
 /// Handle for an active watch subscription returned by [crate::FileFinder::watch]
 ///
@@ -47,7 +48,7 @@ impl WatchSubscription {
         slf
     }
 
-    fn __exit__(&self, _exc_type: PyObject, _exc_value: PyObject, _traceback: PyObject) {
+    fn __exit__(&self, _exc_type: Py<PyAny>, _exc_value: Py<PyAny>, _traceback: Py<PyAny>) {
         self.unsubscribe();
     }
 

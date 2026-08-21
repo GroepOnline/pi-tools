@@ -1,4 +1,5 @@
 use pyo3::prelude::*;
+use pyo3::types::PyAny;
 
 #[pyclass]
 #[derive(Clone)]
@@ -281,7 +282,7 @@ impl DirSearchResult {
 #[pyclass]
 pub struct MixedSearchResult {
     #[pyo3(get)]
-    pub items: Vec<PyObject>,
+    pub items: Vec<Py<PyAny>>,
     #[pyo3(get)]
     pub scores: Vec<Score>,
     #[pyo3(get)]
