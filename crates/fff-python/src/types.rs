@@ -1,7 +1,7 @@
 use pyo3::prelude::*;
 use pyo3::types::PyAny;
 
-#[pyclass]
+#[pyclass]#[pyclass(from_py_object)]
 #[derive(Clone)]
 pub struct Score {
     #[pyo3(get)]
@@ -38,7 +38,7 @@ impl Score {
     }
 }
 
-#[pyclass]
+#[pyclass]#[pyclass(from_py_object)]
 #[derive(Clone)]
 pub struct FileItem {
     #[pyo3(get)]
@@ -71,7 +71,7 @@ impl FileItem {
     }
 }
 
-#[pyclass]
+#[pyclass]#[pyclass(from_py_object)]
 #[derive(Clone)]
 pub struct DirItem {
     #[pyo3(get)]
@@ -92,7 +92,7 @@ impl DirItem {
     }
 }
 
-#[pyclass]
+#[pyclass]#[pyclass(from_py_object)]
 #[derive(Clone)]
 pub struct MixedFileItem {
     #[pyo3(get)]
@@ -125,7 +125,7 @@ impl MixedFileItem {
     }
 }
 
-#[pyclass]
+#[pyclass]#[pyclass(from_py_object)]
 #[derive(Clone)]
 pub struct MixedDirItem {
     #[pyo3(get)]
@@ -146,7 +146,7 @@ impl MixedDirItem {
     }
 }
 
-#[pyclass]
+#[pyclass]#[pyclass(from_py_object)]
 #[derive(Clone)]
 pub struct MatchRange {
     #[pyo3(get)]
@@ -162,7 +162,7 @@ impl MatchRange {
     }
 }
 
-#[pyclass]
+#[pyclass]#[pyclass(from_py_object)]
 #[derive(Clone)]
 pub struct GrepMatch {
     #[pyo3(get)]
@@ -213,7 +213,7 @@ impl GrepMatch {
     }
 }
 
-#[pyclass]
+#[pyclass]#[pyclass(from_py_object)]
 #[derive(Clone)]
 pub struct SearchResult {
     #[pyo3(get)]
@@ -246,7 +246,7 @@ impl SearchResult {
     }
 }
 
-#[pyclass]
+#[pyclass]#[pyclass(from_py_object)]
 #[derive(Clone)]
 pub struct DirSearchResult {
     #[pyo3(get)]
@@ -279,7 +279,7 @@ impl DirSearchResult {
     }
 }
 
-#[pyclass]
+#[pyclass]#[pyclass]
 pub struct MixedSearchResult {
     #[pyo3(get)]
     pub items: Vec<Py<PyAny>>,
@@ -314,7 +314,7 @@ impl MixedSearchResult {
     }
 }
 
-#[pyclass]
+#[pyclass]#[pyclass(from_py_object)]
 #[derive(Clone)]
 pub struct GrepResult {
     #[pyo3(get)]
@@ -366,7 +366,7 @@ impl GrepResult {
     }
 }
 
-#[pyclass]
+#[pyclass]#[pyclass(from_py_object)]
 #[derive(Clone)]
 pub struct ScanProgress {
     #[pyo3(get)]
@@ -389,7 +389,7 @@ impl ScanProgress {
     }
 }
 
-#[pyclass]
+#[pyclass]#[pyclass(from_py_object)]
 #[derive(Clone)]
 pub struct WatchEvent {
     #[pyo3(get)]
@@ -405,7 +405,7 @@ impl WatchEvent {
     }
 }
 
-#[pyclass]
+#[pyclass]#[pyclass(from_py_object)]
 #[derive(Clone)]
 pub struct GrepCursor {
     #[pyo3(get)]
