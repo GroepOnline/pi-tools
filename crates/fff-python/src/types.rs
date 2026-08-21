@@ -279,7 +279,7 @@ impl DirSearchResult {
     }
 }
 
-#[pyclass]#[pyclass]
+#[pyclass]
 pub struct MixedSearchResult {
     #[pyo3(get)]
     pub items: Vec<Py<PyAny>>,

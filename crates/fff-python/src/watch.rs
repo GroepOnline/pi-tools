@@ -8,7 +8,7 @@ use pyo3::types::PyAny;
 /// Handle for an active watch subscription returned by [crate::FileFinder::watch]
 ///
 /// Usable as a context manager: exiting the `with` block unsubscribes
-#[pyclass]#[pyclass]
+#[pyclass]
 pub struct WatchSubscription {
     picker: SharedFilePicker,
     id: u64,
