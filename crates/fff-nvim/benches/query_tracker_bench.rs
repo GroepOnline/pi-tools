@@ -1,13 +1,13 @@
 use criterion::{BenchmarkId, Criterion, black_box, criterion_group, criterion_main};
 use fff::query_tracker::QueryTracker;
-use rand::distributions::Alphanumeric;
+use rand::distr::Alphanumeric;
 use rand::prelude::*;
 use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 fn generate_random_string(len: usize) -> String {
-    thread_rng()
-        .sample_iter(&Alphanumeric)
+    rand::rng()
+        .sample_iter(Alphanumeric)
         .take(len)
         .map(char::from)
         .collect()
@@ -23,7 +23,7 @@ struct TestQueryEntry {
 }
 
 fn generate_test_data(num_entries: usize) -> Vec<TestQueryEntry> {
-    let mut rng = thread_rng();
+    let mut rng = rand::rng();
     let mut entries = Vec::with_capacity(num_entries);
     let now = SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -65,19 +65,19 @@ fn generate_test_data(num_entries: usize) -> Vec<TestQueryEntry> {
     ];
 
     for _ in 0..num_entries {
-        let query = if rng.gen_bool(0.7) {
+        let query = if rng.random_bool(0.7) {
             // 70% chance to use common query
             common_queries.choose(&mut rng).unwrap().to_string()
         } else {
             // 30% chance to use random query
-            generate_random_string(rng.gen_range(3..15))
+            generate_random_string(rng.random_range(3..15))
         };
 
         let project_path = project_paths.choose(&mut rng).unwrap();
         let file_name = format!(
             "{}.{}",
-            generate_random_string(rng.gen_range(5..20)),
-            if rng.gen_bool(0.5) { "rs" } else { "js" }
+            generate_random_string(rng.random_range(5..20)),
+            if rng.random_bool(0.5) { "rs" } else { "js" }
         );
         let file_path = PathBuf::from(format!("{}/src/{}", project_path, file_name));
 
@@ -85,8 +85,8 @@ fn generate_test_data(num_entries: usize) -> Vec<TestQueryEntry> {
             query: query.into(),
             project_path: PathBuf::from(project_path),
             file_path,
-            open_count: rng.gen_range(1..10),
-            last_opened: now - rng.gen_range(0..30 * 24 * 3600), // Random time within last 30 days
+            open_count: rng.random_range(1..10),
+            last_opened: now - rng.random_range(0..30 * 24 * 3600), // Random time within last 30 days
         };
 
         entries.push(entry);
@@ -131,7 +131,7 @@ fn bench_track_query_completion(c: &mut Criterion) {
         let (mut tracker, temp_dir) = setup_tracker_with_data(&entries[..*size / 2]); // Pre-populate with half
 
         group.bench_with_input(BenchmarkId::new("entries", size), size, |b, _| {
-            let mut rng = thread_rng();
+            let mut rng = rand::rng();
             b.iter(|| {
                 let entry = entries.choose(&mut rng).unwrap();
                 black_box(
@@ -161,12 +161,12 @@ fn bench_realistic_workload(c: &mut Criterion) {
         let (mut tracker, temp_dir) = setup_tracker_with_data(&entries);
 
         group.bench_with_input(BenchmarkId::new("mixed_operations", size), size, |b, _| {
-            let mut rng = thread_rng();
+            let mut rng = rand::rng();
             b.iter(|| {
                 let entry = entries.choose(&mut rng).unwrap();
 
                 // Simulate realistic usage: 70% lookups, 25% tracking, 5% history
-                match rng.gen_range(0..100) {
+                match rng.random_range(0..100) {
                     0..70 => {
                         // Query entry lookup (most common operation)
                         let entry_result = black_box(
