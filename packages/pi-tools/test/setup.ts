@@ -20,7 +20,11 @@ mock.module("@earendil-works/pi-tui", () => ({
 // Tests that exercise the real schema are in extension.test.ts which
 // provides its own mock; this preload just needs to make the import succeed.
 mock.module("@sinclair/typebox", () => {
-  const handler: ProxyHandler<typeof Proxy> = {
+  const builderFactory = (..._args: unknown[]): unknown => ({
+    _type: "",
+    properties: {},
+  });
+  const handler: ProxyHandler<typeof builderFactory> = {
     get: (_target, prop) => {
       // Return a callable that also carries nested builders.
       const builder = (..._args: unknown[]) => ({
@@ -31,6 +35,6 @@ mock.module("@sinclair/typebox", () => {
     },
   };
   return {
-    Type: new Proxy({}, handler),
+    Type: new Proxy(builderFactory, handler) as unknown as typeof Proxy,
   };
 });

@@ -2,7 +2,7 @@
 
 ## Purpose
 
-`GroepOnline/pi-tools` is currently marked by GitHub as a fork of `dmtrKovalenko/fff`. A commit, remote change, or documentation update cannot remove that GitHub-network relationship. This runbook prepares the safe replacement with a standalone GroepOnline repository while preserving the existing package name, licence obligations, and release continuity.
+This runbook records the safe cutover of `GroepOnline/pi-tools` to a standalone repository identity while preserving the existing package name, licence obligations, and release continuity.
 
 > **Decision required before execution:** the rename/create/push steps below change a public GitHub repository identity. They must be confirmed immediately before execution.
 
