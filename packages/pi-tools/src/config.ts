@@ -4,6 +4,7 @@ import { piDataDir } from "./paths";
 
 export const CONFIG_FILE_NAME = "pi-tools.json";
 const LEGACY_CONFIG_FILE_NAME = "pi-fff.json";
+
 export const VALID_MODES = ["tools-and-ui", "tools-only", "override"] as const;
 
 export type FffMode = (typeof VALID_MODES)[number];
@@ -45,7 +46,7 @@ export function loadConfig(agentDir = piDataDir()): FffConfig {
     } catch (legacyError: unknown) {
       if ((legacyError as NodeJS.ErrnoException).code === "ENOENT") return {};
       throw new Error(
-        `Could not read pi-fff config at ${legacyConfigPath}: ${errorMessage(legacyError)}`,
+        `Could not read pi-tools config at ${legacyConfigPath}: ${errorMessage(legacyError)}`,
       );
     }
   }

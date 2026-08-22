@@ -1,0 +1,2 @@
+[test]
+preload = ["./packages/pi-tools/test/setup.ts"]

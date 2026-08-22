@@ -153,7 +153,7 @@ If prebuilt binaries aren't available for your platform:
 ```bash
 # Clone the repository
 git clone https://github.com/GroepOnline/pi-tools
-cd fff
+cd pi-tools
 
 # Build the C library
 cargo build --release -p fff-c
