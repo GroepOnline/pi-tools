@@ -4,7 +4,7 @@ class FffMcp < Formula
   desc "Fast file search toolkit for AI agents (MCP server)"
   homepage "https://github.com/GroepOnline/pi-tools"
   license "MIT"
-  version "0.10.7"
+  version "0.10.8"
 
   LIVECHECK_REPO = "GroepOnline/pi-tools".freeze
   RELEASE_BASE = "https://github.com/GroepOnline/pi-tools/releases/download".freeze
@@ -12,24 +12,24 @@ class FffMcp < Formula
   on_macos do
     on_arm do
       url "#{RELEASE_BASE}/v#{version}/fff-mcp-aarch64-apple-darwin"
-      sha256 "fca10eca5825f80d8dfb0d5db58ab02a8ceb7b7787ecd82c4b5c2d1f0a8df1a7"
+      sha256 "0cda90129b3408606c1b55b8390726d2065828bc5e8368afac28dc0d860f30a5"
     end
 
     on_intel do
       url "#{RELEASE_BASE}/v#{version}/fff-mcp-x86_64-apple-darwin"
-      sha256 "c7f2dee49473d5fb8d0cdb7884d1159b27b25b107b5dcad534ca29d5ee009545"
+      sha256 "c7b17d9930cf2b3a0dae12411a52f4990e90707316c955847ae3b88f39b69e40"
     end
   end
 
   on_linux do
     on_arm do
       url "#{RELEASE_BASE}/v#{version}/fff-mcp-aarch64-unknown-linux-gnu"
-      sha256 "6b5e8ade41530b43832e94f77ac1a064a04a5d710b99e6d467c35e0255de49a6"
+      sha256 "e168fb440edeab09419da8e801e9c73afd22e7bc73722df7e2e52b46b5208d10"
     end
 
     on_intel do
       url "#{RELEASE_BASE}/v#{version}/fff-mcp-x86_64-unknown-linux-gnu"
-      sha256 "bd9dcfc49911c97f764c7370bb09c4c9dc6791e3f90979cf4115ca925e72c17f"
+      sha256 "bac7be268396a3bfa729a0328e0a6eac147ec7e3da60132bacbf54fdfeb231a1"
     end
   end
 
