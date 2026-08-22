@@ -793,3 +793,15 @@ jobs:
 
           cd packages/pi-tools
           npm publish --tag "$TAG" --access public
+
+      # The repo shipped as @groeponline/pi-fff until the 2026-08 rename. Point
+      # its old name at the new one so installs of the dead name fail with a
+      # redirect instead of silently tracking an unmaintained publish. Advisory
+      # only: never let a deprecate hiccup fail a real release.
+      - name: Deprecate old package name
+        if: steps.version.outputs.is_release == 'true'
+        continue-on-error: true
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          npm deprecate @groeponline/pi-fff "Renamed to @groeponline/pi-tools. Install the new name: pi install npm:@groeponline/pi-tools" || true

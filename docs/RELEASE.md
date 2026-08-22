@@ -6,18 +6,14 @@ A GroepOnline release is a `v*` git tag. GitHub Actions (`Build & Publish`) buil
 
 ## What a release publishes
 
-On a `v*` tag push, npm packages and GitHub Release assets always publish. PyPI
-and crates.io publish only when the matching org variable gate is set to
-`'true'` (`vars.GROEPONLINE_PUBLISH_PYPI` / `vars.GROEPONLINE_PUBLISH_CRATES`).
-A manual `workflow_dispatch` run republishes npm only; it never publishes
-PyPI or crates.io.
+On a `v*` tag push:
 
 | Artifact | Where |
 |---|---|
 | `@groeponline/pi-tools` | npm |
 | `@groeponline/fff-node` | npm |
 | `@groeponline/fff-bun` | npm |
-| Neovim native modules, C FFI libs, MCP binaries, Python wheels and sdists | [GitHub Releases](https://github.com/GroepOnline/pi-tools/releases) |
+| Neovim native modules, C FFI libs, MCP binaries, Python wheels | [GitHub Releases](https://github.com/GroepOnline/pi-tools/releases) |
 
 `workflow_dispatch` can republish the npm packages (and optionally PyPI/crates when enabled) but does **not** create or upload GitHub Release assets; those require a `v*` tag push.
 
