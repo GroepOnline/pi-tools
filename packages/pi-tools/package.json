@@ -48,7 +48,9 @@
   },
   "scripts": {
     "test": "bun test test/",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "verify:pi-package": "node scripts/verify-pi-package-contract.mjs",
+    "prepublishOnly": "npm run verify:pi-package"
   },
   "dependencies": {
     "@groeponline/fff-bun": "*",
