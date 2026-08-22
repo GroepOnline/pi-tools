@@ -79,7 +79,9 @@ describe(".github/ISSUE_TEMPLATE/config.yml", () => {
     expect(aboutMatch).not.toBeNull();
 
     expect(nameMatch![1].trim()).toBe("Discussion / question");
-    expect(urlMatch![1].trim()).toBe("https://github.com/GroepOnline/pi-tools/discussions");
+    expect(urlMatch![1].trim()).toBe(
+      "https://github.com/GroepOnline/pi-tools/discussions",
+    );
     expect(aboutMatch![1].trim()).toContain("issue forms");
   });
 
@@ -135,7 +137,9 @@ describe(".pi/skills/release/SKILL.md", () => {
   });
 
   test("links to docs/RELEASE.md and the target exists", () => {
-    const linkMatch = content.match(/\[`docs\/RELEASE\.md`\]\((\.\.\/\.\.\/\.\.\/docs\/RELEASE\.md)\)/);
+    const linkMatch = content.match(
+      /\[`docs\/RELEASE\.md`\]\((\.\.\/\.\.\/\.\.\/docs\/RELEASE\.md)\)/,
+    );
     expect(linkMatch).not.toBeNull();
 
     const skillDir = path.dirname(path.join(REPO_ROOT, skillRelPath));
@@ -184,7 +188,9 @@ describe("AGENTS.md", () => {
   });
 
   test("documents the package publish list", () => {
-    expect(content).toContain("We publish `@groeponline/pi-tools`, `@groeponline/fff-node`, and `@groeponline/fff-bun`.");
+    expect(content).toContain(
+      "We publish `@groeponline/pi-tools`, `@groeponline/fff-node`, and `@groeponline/fff-bun`.",
+    );
   });
 
   test("links to docs/RELEASE.md and the target exists", () => {
@@ -277,7 +283,9 @@ describe("docs/EXTENSION_ROADMAP.md", () => {
   const content = readRepoFile("docs/EXTENSION_ROADMAP.md");
 
   test("recommended release sequence no longer cites an external PR/issue by number", () => {
-    const sequenceSection = content.split("## Recommended next release sequence")[1]?.split("## Explicit non-goals")[0];
+    const sequenceSection = content
+      .split("## Recommended next release sequence")[1]
+      ?.split("## Explicit non-goals")[0];
     expect(sequenceSection).toBeDefined();
     expect(sequenceSection).not.toContain("PR #779");
     expect(sequenceSection).not.toContain("dmtrKovalenko");
@@ -287,7 +295,7 @@ describe("docs/EXTENSION_ROADMAP.md", () => {
     expect(content).toContain(
       '[3]: https://github.com/GroepOnline/pi-tools/issues "GroepOnline pi-tools issues"',
     );
-    expect(content).not.toContain("github.com/dmtrKovalenko/fff/issues\"");
+    expect(content).not.toContain('github.com/dmtrKovalenko/fff/issues"');
   });
 });
 
@@ -295,7 +303,11 @@ describe("docs/RELEASE.md", () => {
   const content = readRepoFile("docs/RELEASE.md");
 
   test("lists all three published npm packages", () => {
-    for (const pkg of ["@groeponline/pi-tools", "@groeponline/fff-node", "@groeponline/fff-bun"]) {
+    for (const pkg of [
+      "@groeponline/pi-tools",
+      "@groeponline/fff-node",
+      "@groeponline/fff-bun",
+    ]) {
       expect(content).toContain(pkg);
     }
   });
@@ -309,7 +321,9 @@ describe("docs/RELEASE.md", () => {
   test("calls out what is not part of a GroepOnline release", () => {
     expect(content).toContain("## Not part of a GroepOnline release");
     expect(content).toContain("Do not retag or republish `@ff-labs/fff-bin-*`.");
-    expect(content).toContain("Do not push tags to any repository other than `GroepOnline/pi-tools`.");
+    expect(content).toContain(
+      "Do not push tags to any repository other than `GroepOnline/pi-tools`.",
+    );
   });
 });
 
