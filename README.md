@@ -50,9 +50,9 @@ Three operating modes, switchable at runtime with `/fff-mode`:
 
 | Mode | What it does |
 | --- | --- |
-| `tools-and-ui` (default) | Adds `ffgrep` and `fffind` tools, replaces `@`-mention autocomplete with FFF. |
-| `tools-only` | Only tool injection. Keeps pi's native editor autocomplete. |
-| `override` | Replaces pi's built-in `grep` and `find` with FFF implementations. With `PI_FFF_MULTIGREP=1`, also registers `multi_grep`. |
+| `tools-and-ui` (default) | Adds `ffgrep`, `fffind`, and `fff-multi-grep` tools, replaces `@`-mention autocomplete with FFF. |
+| `tools-only` | Only tool injection: registers the same three tools. Keeps pi's native editor autocomplete. |
+| `override` | Replaces pi's built-in `grep`, `find`, and multi-pattern search with the FFF implementations registered as `grep`, `find`, and `multi_grep`. |
 
 Set `PI_FFF_MULTIGREP=1` to opt in to `fff-multi-grep` (or `multi_grep` in `override` mode). Without it, only `ffgrep` and `fffind` are registered.
 

@@ -68,6 +68,6 @@ Promote scoped ignored-path search only after introducing explicit safety limits
 
 ## SDK runtime compatibility candidate
 
-Issue [#778](https://github.com/dmtrKovalenko/fff/issues/778) and open PR [#779](https://github.com/dmtrKovalenko/fff/pull/779) identify a concrete host-compatibility gap: a Bun-compiled host can expose `globalThis.Bun` while rejecting TypeScript entry points from `node_modules`. The proposed low-risk solution retains runtime preference but attempts the alternate SDK when the preferred dynamic import fails. It also offers an `FFF_SDK=bun|node` override and includes isolated unit tests for candidate ordering, successful fallback, and final error propagation.
+A concrete host-compatibility gap was identified upstream: a Bun-compiled host can expose `globalThis.Bun` while rejecting TypeScript entry points from `node_modules`. The adopted low-risk solution retains runtime preference but attempts the alternate SDK when the preferred dynamic import fails. It also offers an `FFF_SDK=bun|node` override and includes isolated unit tests for candidate ordering, successful fallback, and final error propagation.
 
 This change is suitable for adoption only after reviewing the actual PR diff, applying it as a focused compatibility commit, and running the new SDK tests plus the existing extension suite. It should be versioned as a patch release and documented as host compatibility, not a behavioural search change.

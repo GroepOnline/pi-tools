@@ -64,14 +64,5 @@ Package metadata should continue to point users to the GroepOnline package and r
 [4]: https://github.com/GroepOnline/pi-wishcraft "GroepOnline pi-wishcraft"
 [5]: https://github.com/GroepOnline/pi-subagents-tui "Archived GroepOnline pi-subagents-tui"
 [6]: https://github.com/GroepOnline/pi-cli-search-tools "GroepOnline pi-cli-search-tools"
-<<<<<<< HEAD
-[7]: https://github.com/dmtrKovalenko/fff/pull/779 "FFF PR #779: SDK fallback for Bun-compiled hosts"
-[8]: https://github.com/dmtrKovalenko/fff/issues/714 "FFF issue #714: Explicit ignored-path search"
 [9]: https://pi.dev/packages/@groeponline/pi-tools "@groeponline/pi-tools package page"
-||||||| parent of bcf569d (fix: repair CI regressions and finish GroepOnline doc sweep)
-[7]: https://github.com/dmtrKovalenko/fff/pull/779 "FFF PR #779: SDK fallback for Bun-compiled hosts"
-[8]: https://github.com/dmtrKovalenko/fff/issues/714 "FFF issue #714: Explicit ignored-path search"
-[9]: https://pi.dev/packages/@groeponline/pi-fff "@groeponline/pi-fff package page"
-=======
-[9]: https://pi.dev/packages/@groeponline/pi-fff "@groeponline/pi-fff package page"
->>>>>>> bcf569d (fix: repair CI regressions and finish GroepOnline doc sweep)
+

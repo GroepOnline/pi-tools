@@ -14,7 +14,7 @@ Prefer Makefile commands over cargo/bun/npm where they exist.
 - `bun test packages/pi-fff/test/` - pi extension tests (no native lib needed)
 - `npm run check:ci` in `packages/` - oxlint + oxfmt checks
 
-> `cargo` is intentionally not installed on joep's laptop. Build Rust on the runner: `ssh chef@chef-runner-01-1 'cd <checkout> && export PATH=$HOME/.cargo/bin:$PATH && cargo build --release'`.
+> `cargo` is intentionally not installed on joep's laptop. Build Rust on the runner: `ssh chef@chef-runner-01-1 'cd <checkout> && export PATH=$HOME/.cargo/bin:$PATH && cargo build --release --no-default-features --features zlob'`.
 
 ## Coding rules
 
@@ -41,7 +41,7 @@ Databases: frecency (LMDB, file access patterns) and query history (LMDB, past s
 ## Package rules
 
 - Canonical repo is `GroepOnline/pi-tools`.
-- We publish `@groeponline/pi-fff`, `@groeponline/fff-node`, and `@groeponline/fff-bun`.
+- We publish `@groeponline/pi-tools`, `@groeponline/pi-fff`, `@groeponline/fff-node`, and `@groeponline/fff-bun`.
 - `@ff-labs/fff-bin-*` platform packages stay under that npm scope; we consume them and do not republish them.
 - pi-fff source imports must match the `@groeponline` deps — a scope rename that leaves old SDK imports behind is a runtime bug.
 - Update lockfiles (`packages/bun.lock`, `packages/package-lock.json`) when touching package names or deps.
