@@ -22,7 +22,7 @@ Verify the package source, current version, and supported Pi metadata at [pi.dev
 
 ## Choose a mode
 
-The default mode is deliberately additive: it gives an agent access to FFF tools without changing the names of Pi’s standard tools.
+The default mode is deliberately additive for search tools: it registers `fffind` and `ffgrep` without renaming Pi’s built-in `find` and `grep`. It still replaces `@`-mention autocomplete with FFF-backed ranking in `tools-and-ui` mode.
 
 | Mode | Registered search tools | `@` completion | Recommended use |
 | --- | --- | --- | --- |
