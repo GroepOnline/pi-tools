@@ -2,7 +2,7 @@
   "name": "@groeponline/pi-tools",
   "public": true,
   "version": "0.10.5",
-  "description": "Fast local file and content search for Pi agents",
+  "description": "High-speed local search for Pi: fuzzy file discovery, SIMD content search, frecency ranking, and FFF-backed @ completion.",
   "type": "module",
   "license": "MIT",
   "author": "GroepOnline",
@@ -11,7 +11,7 @@
     "url": "git+https://github.com/GroepOnline/pi-tools.git",
     "directory": "packages/pi-tools"
   },
-  "homepage": "https://pi.dev/packages/@groeponline/pi-tools",
+  "homepage": "https://github.com/GroepOnline/pi-tools/tree/main/packages/pi-tools#readme",
   "bugs": {
     "url": "https://github.com/GroepOnline/pi-tools/issues"
   },
@@ -25,12 +25,19 @@
     "fuzzy-search",
     "ai-agent",
     "local-first",
-    "groeponline"
+    "groeponline",
+    "pi-coding-agent",
+    "coding-agent",
+    "file-search",
+    "content-search",
+    "autocomplete",
+    "developer-tools"
   ],
   "pi": {
     "extensions": [
       "./src/index.ts"
-    ]
+    ],
+    "image": "https://raw.githubusercontent.com/GroepOnline/pi-tools/main/assets/logo-orange.png"
   },
   "files": [
     "src",
