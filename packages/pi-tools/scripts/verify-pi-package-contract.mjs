@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 import fs from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
@@ -73,7 +72,7 @@ const core = [
   "@earendil-works/pi-agent-core",
   "@earendil-works/pi-coding-agent",
   "@earendil-works/pi-tui",
-  "typebox",
+  "@sinclair/typebox",
 ];
 const peer = pkg.peerDependencies || {};
 for (const dep of core) {
