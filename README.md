@@ -23,7 +23,7 @@ Typo-resistant path and content search, frequency-ranked file access, a backgrou
 
 ## Pi agent extension
 
-A [pi](https://github.com/badlogic/pi-mono) extension that replaces the built-in `find` and `grep` tools with FFF and feeds the interactive editor's `@`-mention autocomplete from the frecency-ranked index.
+A [pi](https://github.com/badlogic/pi-mono) extension that adds FFF-powered search tools alongside Pi's built-in `find` and `grep`. In the default `tools-and-ui` mode it also replaces the interactive editor's `@`-mention autocomplete with frecency-ranked results. The optional `override` mode additionally replaces Pi's built-in `find` and `grep` tool names with FFF implementations.
 
 ```bash
 pi install npm:@groeponline/pi-tools
