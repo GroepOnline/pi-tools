@@ -19,20 +19,17 @@ jobs:
 
       - name: Extract Neovim section from README.md
         run: |
+          # README uses markdown ### fff.nvim (not the upstream <details id="neovim-plugin"> block).
           awk '
-            /^<details id="neovim-plugin">/ { capture=1; next }
-            capture && /^<\/details>/        { capture=0; exit }
-            capture && /^<summary>$/         { next }
-            capture && /^<\/summary>$/       { next }
-            capture && /<h2>.*<\/h2>/ {
-              gsub(/<\/?h2>/, "")
-              sub(/^[[:space:]]+/, "")
-              print "# " $0
+            /^### fff\.nvim$/ {
+              print "# fff.nvim"
               print ""
               print "The best file search picker for Neovim. Frecency-ranked, typo-resistant, git-award, very fast."
               print ""
+              capture=1
               next
             }
+            capture && (/^### / || /^## /) { exit }
             capture { print }
           ' README.md > .panvimdoc-input.md
           test -s .panvimdoc-input.md
