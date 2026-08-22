@@ -1,7 +1,3 @@
-// Tests for the documentation/config content introduced by the GroepOnline
-// rebrand + release-process PR. These are plain content assertions (no YAML
-// parser is available in this workspace), so they check for specific
-// substrings/structure rather than fully parsing YAML/Markdown.
 import { describe, expect, test } from "bun:test";
 import fs from "node:fs";
 import path from "node:path";
@@ -83,7 +79,7 @@ describe(".github/ISSUE_TEMPLATE/config.yml", () => {
     expect(aboutMatch).not.toBeNull();
 
     expect(nameMatch![1].trim()).toBe("Discussion / question");
-    expect(urlMatch![1].trim()).toBe("https://github.com/badlogic/pi-mono/discussions");
+    expect(urlMatch![1].trim()).toBe("https://github.com/GroepOnline/pi-tools/discussions");
     expect(aboutMatch![1].trim()).toContain("issue forms");
   });
 
@@ -170,7 +166,8 @@ describe("AGENTS.md", () => {
   });
 
   test("names the shipped pi extension package", () => {
-    expect(content).toContain("`@groeponline/pi-fff`");
+    expect(content).toContain("`@groeponline/pi-tools`");
+    expect(content).not.toContain("`@groeponline/pi-fff`");
   });
 
   test("lists the current development commands", () => {
@@ -180,14 +177,14 @@ describe("AGENTS.md", () => {
       "make format",
       "make test",
       "make test-node",
-      "bun test packages/pi-fff/test/",
+      "bun test packages/pi-tools/test/",
     ]) {
       expect(content).toContain(cmd);
     }
   });
 
   test("documents the package publish list", () => {
-    expect(content).toContain("We publish `@groeponline/pi-fff`, `@groeponline/fff-node`, and `@groeponline/fff-bun`.");
+    expect(content).toContain("We publish `@groeponline/pi-tools`, `@groeponline/fff-node`, and `@groeponline/fff-bun`.");
   });
 
   test("links to docs/RELEASE.md and the target exists", () => {
@@ -204,14 +201,15 @@ describe("README.md", () => {
     expect(content).not.toContain('alt="GroepOnline FFF"');
   });
 
-  test("advertises the pi-fff install commands", () => {
-    expect(content).toContain("pi install npm:@groeponline/pi-fff");
-    expect(content).toContain("pi install -l npm:@groeponline/pi-fff");
+  test("advertises the pi-tools install commands", () => {
+    expect(content).toContain("pi install npm:@groeponline/pi-tools");
+    expect(content).not.toContain("pi install npm:@groeponline/pi-fff");
+    expect(content).toContain("pi install -l npm:@groeponline/pi-tools");
   });
 
-  test("publishes list matches the @groeponline scope trio", () => {
+  test("publishes list matches the @groeponline scope set", () => {
     expect(content).toContain(
-      "`@groeponline/pi-fff`, `@groeponline/fff-node`, `@groeponline/fff-bun`",
+      "`@groeponline/pi-tools`, `@groeponline/fff-node`, `@groeponline/fff-bun`",
     );
   });
 
