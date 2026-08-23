@@ -761,6 +761,13 @@ jobs:
           (cd fff-bun && npm run build)
           (cd fff-node && npm run build)
 
+      - name: Pi package release gate
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          make set-npm-version PKG=packages/pi-tools VERSION="$VERSION"
+          cd packages/pi-tools
+          npm run verify:pi-package
+
       - name: Publish bun package
         run: |
           VERSION="${{ steps.version.outputs.version }}"
@@ -782,13 +789,6 @@ jobs:
 
           cd packages/fff-node
           npm publish --tag "$TAG" --access public
-
-      - name: Pi package release gate
-        run: |
-          VERSION="${{ steps.version.outputs.version }}"
-          make set-npm-version PKG=packages/pi-tools VERSION="$VERSION"
-          cd packages/pi-tools
-          npm run verify:pi-package
 
       - name: Publish pi-tools package
         run: |
