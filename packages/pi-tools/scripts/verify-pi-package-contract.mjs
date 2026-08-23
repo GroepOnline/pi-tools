@@ -1,6 +1,7 @@
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
+import { importsDependency } from "./package-contract-runtime.mjs";
 
 const DOCS = "https://pi.dev/docs/latest/packages";
 const packageRoot = path.resolve(process.argv[2] || process.cwd());
@@ -195,14 +196,6 @@ const runtimePath = (file) => {
   return codeExt.has(path.extname(file));
 };
 const stripComments = (text) => text.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
-const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-const importsDependency = (text, dep) => {
-  const d = escapeRegExp(dep);
-  return [
-    new RegExp(`\\b(?:import|export)\\s+(?!type\\s)(?:[^;\\n]*?\\s+from\\s+)?["']${d}(?:\\/[^"']*)?["']`),
-    new RegExp(`\\b(?:import|require)\\s*\\(\\s*["']${d}(?:\\/[^"']*)?["']`),
-  ].some((pattern) => pattern.test(text));
-};
 const runtimeFiles = [...packedFiles].filter(runtimePath);
 const runtimeText = runtimeFiles.map((file) => {
   const local = path.join(packageRoot, file);

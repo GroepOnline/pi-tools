@@ -49,7 +49,7 @@
   "scripts": {
     "test": "bun test test/",
     "typecheck": "tsc --noEmit",
-    "verify:pi-package": "node scripts/verify-pi-package-contract.mjs",
+    "verify:pi-package": "node --test scripts/verify-pi-package-contract-runtime.test.mjs && node scripts/verify-pi-package-contract.mjs",
     "prepublishOnly": "npm run verify:pi-package"
   },
   "dependencies": {
