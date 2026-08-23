@@ -199,7 +199,7 @@ const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 const importsDependency = (text, dep) => {
   const d = escapeRegExp(dep);
   return [
-    new RegExp(`\\b(?:import|export)\\s+(?:type\\s+)?(?:[^;\\n]*?\\s+from\\s+)?["']${d}(?:\\/[^"']*)?["']`),
+    new RegExp(`\\b(?:import|export)\\s+(?!type\\s)(?:[^;\\n]*?\\s+from\\s+)?["']${d}(?:\\/[^"']*)?["']`),
     new RegExp(`\\b(?:import|require)\\s*\\(\\s*["']${d}(?:\\/[^"']*)?["']`),
   ].some((pattern) => pattern.test(text));
 };
