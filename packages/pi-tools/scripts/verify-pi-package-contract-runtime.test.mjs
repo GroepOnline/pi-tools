@@ -28,3 +28,38 @@ test("mixed and runtime imports/exports remain runtime dependencies", () => {
     assert.equal(importsDependency(source, dep), true, source);
   }
 });
+
+test("returns false when the dependency is never referenced", () => {
+  for (const source of [
+    "",
+    'import { Type } from "@earendil-works/pi-tui";',
+    "export const noop = 1;",
+  ]) {
+    assert.equal(importsDependency(source, dep), false, source);
+  }
+});
+
+test("detects subpath imports and requires of the dependency", () => {
+  for (const source of [
+    'import { Value } from "@sinclair/typebox/value";',
+    'import "@sinclair/typebox/compiler";',
+    'const { Value } = require("@sinclair/typebox/value");',
+  ]) {
+    assert.equal(importsDependency(source, dep), true, source);
+  }
+});
+
+test("does not false-positive on similarly named packages", () => {
+  for (const source of [
+    'import { Type } from "@sinclair/typebox-extra";',
+    'import { Type } from "@sinclair/typeboxx";',
+    'const x = require("not-sinclair/typebox");',
+  ]) {
+    assert.equal(importsDependency(source, dep), false, source);
+  }
+});
+
+test("detects declarations that span multiple lines", () => {
+  const source = 'import {\n  Type,\n  type TSchema,\n} from "@sinclair/typebox";';
+  assert.equal(importsDependency(source, dep), true, source);
+});
