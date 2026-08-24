@@ -11,25 +11,23 @@ function allNamedSpecifiersAreTypeOnly(clause) {
 export function importsDependency(text, dep) {
   const d = escapeRegExp(dep);
   const target = `${d}(?:\\/[^"']*)?`;
-
+  const flat = String(text).replace(/\r?\n/g, " ");
   if (
-    new RegExp(`\\bimport\\s*(?:\\(|["'])\\s*["']?${target}["']`).test(text) ||
-    new RegExp(`\\brequire\\s*\\(\\s*["']${target}["']`).test(text)
+    new RegExp(`\\bimport\\s+["']${target}["']`).test(flat) ||
+    new RegExp(`\\bimport\\s*\\(\\s*["']${target}["']`).test(flat) ||
+    new RegExp(`\\brequire\\s*\\(\\s*["']${target}["']`).test(flat)
   ) {
     return true;
   }
-
   const declarations = new RegExp(
-    `\\b(?:import|export)\\s+([^;\\n]*?)\\s+from\\s+["']${target}["']`,
+    `\\b(?:import|export)\\s+([^;]*?)\\s+from\\s+["']${target}["']`,
     "g",
   );
-
-  for (const match of text.matchAll(declarations)) {
+  for (const match of flat.matchAll(declarations)) {
     const clause = match[1].trim();
     if (/^type\b/.test(clause)) continue;
     if (allNamedSpecifiersAreTypeOnly(clause)) continue;
     return true;
   }
-
   return false;
 }
