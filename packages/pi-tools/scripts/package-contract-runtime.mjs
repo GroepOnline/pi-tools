@@ -13,14 +13,14 @@ export function importsDependency(text, dep) {
   const target = `${d}(?:\\/[^"']*)?`;
   const flat = String(text).replace(/\r?\n/g, " ");
   if (
-    new RegExp(`\\bimport\\s+["']${target}["']`).test(flat) ||
+    new RegExp(`\\bimport\\s*["']${target}["']`).test(flat) ||
     new RegExp(`\\bimport\\s*\\(\\s*["']${target}["']`).test(flat) ||
     new RegExp(`\\brequire\\s*\\(\\s*["']${target}["']`).test(flat)
   ) {
     return true;
   }
   const declarations = new RegExp(
-    `\\b(?:import|export)\\s+([^;]*?)\\s+from\\s+["']${target}["']`,
+    `\\b(?:import|export)\\s*([^;]*?)\\s*from\\s*["']${target}["']`,
     "g",
   );
   for (const match of flat.matchAll(declarations)) {
