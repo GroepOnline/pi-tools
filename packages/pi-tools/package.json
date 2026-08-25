@@ -2,7 +2,7 @@
   "name": "@groeponline/pi-tools",
   "public": true,
   "version": "0.10.5",
-  "description": "Fast local file and content search for Pi agents",
+  "description": "High-speed local search for Pi: fuzzy file discovery, SIMD content search, frecency ranking, and FFF-backed @ completion.",
   "type": "module",
   "license": "MIT",
   "author": "GroepOnline",
@@ -11,7 +11,7 @@
     "url": "git+https://github.com/GroepOnline/pi-tools.git",
     "directory": "packages/pi-tools"
   },
-  "homepage": "https://pi.dev/packages/@groeponline/pi-tools",
+  "homepage": "https://github.com/GroepOnline/pi-tools/tree/main/packages/pi-tools#readme",
   "bugs": {
     "url": "https://github.com/GroepOnline/pi-tools/issues"
   },
@@ -25,12 +25,19 @@
     "fuzzy-search",
     "ai-agent",
     "local-first",
-    "groeponline"
+    "groeponline",
+    "pi-coding-agent",
+    "coding-agent",
+    "file-search",
+    "content-search",
+    "autocomplete",
+    "developer-tools"
   ],
   "pi": {
     "extensions": [
       "./src/index.ts"
-    ]
+    ],
+    "image": "https://raw.githubusercontent.com/GroepOnline/pi-tools/main/assets/logo-orange.png"
   },
   "files": [
     "src",
@@ -41,16 +48,18 @@
   },
   "scripts": {
     "test": "bun test test/",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "verify:pi-package": "node --test scripts/verify-pi-package-contract-runtime.test.mjs scripts/verify-pi-package-contract.test.mjs && node scripts/verify-pi-package-contract.mjs",
+    "prepublishOnly": "npm run verify:pi-package"
   },
   "dependencies": {
     "@groeponline/fff-bun": "*",
-    "@groeponline/fff-node": "*"
+    "@groeponline/fff-node": "*",
+    "@sinclair/typebox": "^0.34.52"
   },
   "peerDependencies": {
     "@earendil-works/pi-coding-agent": "*",
-    "@earendil-works/pi-tui": "*",
-    "@sinclair/typebox": "*"
+    "@earendil-works/pi-tui": "*"
   },
   "devDependencies": {
     "@types/bun": "^1.3.8",

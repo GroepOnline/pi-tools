@@ -1,8 +1,14 @@
+<p align="center">
+  <img src="https://raw.githubusercontent.com/GroepOnline/pi-tools/main/assets/logo-orange.png" alt="pi-tools — fast local search for Pi" width="260">
+</p>
+
 # @groeponline/pi-tools
 
-`@groeponline/pi-tools` is a [Pi](https://github.com/badlogic/pi-mono) extension for fast, local file discovery and content search. It adds FFF-powered search tools and can provide FFF-ranked `@` file completion in the interactive editor.
+[![npm](https://img.shields.io/npm/v/@groeponline/pi-tools.svg)](https://www.npmjs.com/package/@groeponline/pi-tools) [![downloads](https://img.shields.io/npm/dm/@groeponline/pi-tools.svg?label=downloads)](https://www.npmjs.com/package/@groeponline/pi-tools) [![Pi package](https://img.shields.io/badge/Pi-package-9b59b6.svg)](https://pi.dev/packages/@groeponline/pi-tools)
 
-The extension is designed for repeated exploration of a workspace. It builds a local index in the background, then uses that index for fuzzy path matching and content search. File-use history and local Git state can improve result ranking when available.
+`@groeponline/pi-tools` gives [Pi](https://github.com/badlogic/pi-mono) a fast local search layer built for repeated agent exploration: fuzzy file discovery, indexed content search, and frecency-ranked `@` completion.
+
+Instead of spawning a fresh search process for every lookup, Pi can keep a local FFF index warm and reuse it across the session. The result is faster navigation with ranking that can incorporate file-use history and local Git context — while keeping search on the machine.
 
 ## Install
 
