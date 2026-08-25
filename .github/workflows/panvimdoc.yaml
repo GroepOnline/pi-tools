@@ -63,7 +63,7 @@ jobs:
         uses: peter-evans/create-pull-request@v7
         with:
           branch: bot/regenerate-vimdoc
-          token: ${{ secrets.GUSTAV_PAT }}
+          token: ${{ secrets.GUSTAV_PAT || github.token }}
           delete-branch: true
           title: "chore: regenerate Neovim vimdoc"
           commit-message: |
