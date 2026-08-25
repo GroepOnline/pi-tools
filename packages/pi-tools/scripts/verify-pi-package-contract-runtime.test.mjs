@@ -15,6 +15,15 @@ test("type-only import/export declarations are not runtime dependencies", () => 
   }
 });
 
+test("an imported runtime binding named type is not mistaken for a type modifier", () => {
+  for (const source of [
+    'import { type as RuntimeType } from "@sinclair/typebox";',
+    'export { type as RuntimeType } from "@sinclair/typebox";',
+  ]) {
+    assert.equal(importsDependency(source, dep), true, source);
+  }
+});
+
 test("mixed and runtime imports/exports remain runtime dependencies", () => {
   for (const source of [
     'import { Type, type TSchema } from "@sinclair/typebox";',
@@ -22,10 +31,24 @@ test("mixed and runtime imports/exports remain runtime dependencies", () => {
     'import Type from "@sinclair/typebox";',
     'import * as TypeBox from "@sinclair/typebox";',
     'import "@sinclair/typebox";',
+    'export * from "@sinclair/typebox";',
     'const TypeBox = await import("@sinclair/typebox");',
     'const TypeBox = require("@sinclair/typebox");',
+    'import TypeBox = require("@sinclair/typebox");',
   ]) {
     assert.equal(importsDependency(source, dep), true, source);
+  }
+});
+
+test("ignores dependency-like text in comments and literals", () => {
+  for (const source of [
+    '// import("@sinclair/typebox")',
+    '/* require("@sinclair/typebox") */',
+    'const example = \'require("@sinclair/typebox")\';',
+    'const example = `import("@sinclair/typebox")`;',
+    'const importation = \'from "@sinclair/typebox"\';',
+  ]) {
+    assert.equal(importsDependency(source, dep), false, source);
   }
 });
 
@@ -59,7 +82,13 @@ test("does not false-positive on similarly named packages", () => {
   }
 });
 
-test("detects declarations that span multiple lines", () => {
-  const source = 'import {\n  Type,\n  type TSchema,\n} from "@sinclair/typebox";';
-  assert.equal(importsDependency(source, dep), true, source);
+test("detects multiline and compact declarations", () => {
+  const sources = [
+    'import {\n  Type,\n  type TSchema,\n} from "@sinclair/typebox";',
+    'import{Type}from"@sinclair/typebox";',
+    'export{Type}from"@sinclair/typebox";',
+  ];
+  for (const source of sources) {
+    assert.equal(importsDependency(source, dep), true, source);
+  }
 });
