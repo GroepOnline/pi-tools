@@ -1,7 +1,7 @@
 {
   "name": "@groeponline/pi-tools",
   "public": true,
-  "version": "0.10.5",
+  "version": "0.10.8",
   "description": "High-speed local search for Pi: fuzzy file discovery, SIMD content search, frecency ranking, and FFF-backed @ completion.",
   "type": "module",
   "license": "MIT",
