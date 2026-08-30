@@ -10,6 +10,10 @@
 
 Instead of spawning a fresh search process for every lookup, Pi can keep a local FFF index warm and reuse it across the session. The result is faster navigation with ranking that can incorporate file-use history and local Git context — while keeping search on the machine.
 
+## Where it fits
+
+`pi-tools` is the portfolio's **local search primitive**. It deliberately does not own task planning, agent orchestration, session control, or provider telemetry. Install it when you want faster repeated path/content discovery and FFF-backed completion; combine it with the larger workflow packages only when needed.
+
 ## Install
 
 Install globally:
@@ -153,6 +157,8 @@ Use `--fff-enable-root-scan` or `FFF_ENABLE_ROOT_SCAN=1` only when indexing from
 ## Privacy and security
 
 The extension runs locally in the Pi process. It does not implement network calls, telemetry, or credential handling. Search-state directories and optional database paths remain on the local machine.
+
+The runtime dependency surface is intentionally narrow: `@groeponline/fff-bun` and `@groeponline/fff-node` provide the FFF engine adapters, while `@sinclair/typebox` defines Pi tool/config schemas. These dependencies are part of the search implementation rather than hosted services.
 
 As with every Pi extension, review the package source and its dependencies before use. The published source, issue tracker, and release context are available from the [GroepOnline repository](https://github.com/GroepOnline/pi-tools).
 

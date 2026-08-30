@@ -35,7 +35,7 @@ function githubSlug(heading: string): string {
     .replace(/\s+/g, "-");
 }
 
-const CHANGED_TEXT_FILES = [
+const CHANGED_TEXT_FILES: string[] = [
   ".github/ISSUE_TEMPLATE/config.yml",
   ".github/workflows/release.yaml",
   ".pi/skills/release/SKILL.md",
@@ -47,7 +47,7 @@ const CHANGED_TEXT_FILES = [
   "packages/fff-bun/README.md",
   "packages/fff-node/README.md",
   "packages/fff-python/README.md",
-] as const;
+];
 
 describe("no leftover merge-conflict markers", () => {
   test.each(CHANGED_TEXT_FILES)("%s has no git conflict markers", (relPath) => {
