@@ -16,11 +16,19 @@ function readPkgFile(rel: string): string {
 }
 
 const readJson = <T>(absOrRel: string): T =>
-  JSON.parse(fs.readFileSync(path.isAbsolute(absOrRel) ? absOrRel : path.join(PKG_ROOT, absOrRel), "utf8")) as T;
+  JSON.parse(
+    fs.readFileSync(
+      path.isAbsolute(absOrRel) ? absOrRel : path.join(PKG_ROOT, absOrRel),
+      "utf8",
+    ),
+  ) as T;
 
 const indexTs = readPkgFile("src/index.ts");
 const configRaw = readPkgFile("src/config.ts");
-const compatDoc = fs.readFileSync(path.join(REPO_ROOT, "docs", "compatibility.md"), "utf8");
+const compatDoc = fs.readFileSync(
+  path.join(REPO_ROOT, "docs", "compatibility.md"),
+  "utf8",
+);
 
 describe("compatibility surface (docs/compatibility.md vs code)", () => {
   test("tool names fffind/ffgrep are the live registered names", () => {
@@ -43,7 +51,13 @@ describe("compatibility surface (docs/compatibility.md vs code)", () => {
   });
 
   test("documented flags exist as extension flags", () => {
-    const documented = ["fff-mode", "fff-frecency-db", "fff-history-db", "fff-enable-root-scan", "fff-enable-home-scan"];
+    const documented = [
+      "fff-mode",
+      "fff-frecency-db",
+      "fff-history-db",
+      "fff-enable-root-scan",
+      "fff-enable-home-scan",
+    ];
     for (const flag of documented) {
       expect(indexTs).toContain(`registerFlag("${flag}"`);
     }
@@ -67,7 +81,9 @@ describe("compatibility surface (docs/compatibility.md vs code)", () => {
   });
 
   test("pagination contract: findSchema pages via opaque cursor + limit (no offset)", () => {
-    const findSchema = indexTs.match(/const findSchema = Type\.Object\(\{([\s\S]*?)\n  \}\);/);
+    const findSchema = indexTs.match(
+      /const findSchema = Type\.Object\(\{([\s\S]*?)\n  \}\);/,
+    );
     expect(findSchema, "findSchema not found in src/index.ts").not.toBeNull();
     expect(findSchema![1]).toMatch(/cursor:/);
     expect(findSchema![1]).toMatch(/limit:/);
