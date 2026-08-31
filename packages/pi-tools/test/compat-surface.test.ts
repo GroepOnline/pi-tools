@@ -15,6 +15,9 @@ function readPkgFile(rel: string): string {
   return fs.readFileSync(path.join(PKG_ROOT, rel), "utf8");
 }
 
+const readJson = <T>(absOrRel: string): T =>
+  JSON.parse(fs.readFileSync(path.isAbsolute(absOrRel) ? absOrRel : path.join(PKG_ROOT, absOrRel), "utf8")) as T;
+
 const indexTs = readPkgFile("src/index.ts");
 const configRaw = readPkgFile("src/config.ts");
 const compatDoc = fs.readFileSync(path.join(REPO_ROOT, "docs", "compatibility.md"), "utf8");
@@ -61,5 +64,49 @@ describe("compatibility surface (docs/compatibility.md vs code)", () => {
     const pkg = JSON.parse(readPkgFile("package.json"));
     expect(fs.existsSync(path.join(PKG_ROOT, "pi-tools.schema.json"))).toBe(true);
     expect(pkg.files).toContain("pi-tools.schema.json");
+  });
+
+  test("pagination contract: findSchema pages via opaque cursor + limit (no offset)", () => {
+    const findSchema = indexTs.match(/const findSchema = Type\.Object\(\{([\s\S]*?)\n  \}\);/);
+    expect(findSchema, "findSchema not found in src/index.ts").not.toBeNull();
+    expect(findSchema![1]).toMatch(/cursor:/);
+    expect(findSchema![1]).toMatch(/limit:/);
+    expect(findSchema![1]).toMatch(/DEFAULT_FIND_LIMIT/);
+    // doc describes the same contract and never claims a live offset parameter
+    expect(compatDoc).toMatch(/opaque[\s\S]*?`cursor`/);
+    expect(compatDoc).toMatch(/no offset/);
+  });
+
+  test("runtime floors match the owning manifests", () => {
+    const fffNodeEngines = readJson<{ engines: { node: string } }>(
+      path.join(REPO_ROOT, "packages", "fff-node", "package.json"),
+    ).engines.node;
+    const fffBunEngines = readJson<{ engines: { bun: string } }>(
+      path.join(REPO_ROOT, "packages", "fff-bun", "package.json"),
+    ).engines.bun;
+    expect(fffNodeEngines).toBe(">=18.0.0");
+    expect(fffBunEngines).toBe(">=1.0.0");
+    // doc table states the same floors
+    expect(compatDoc).toContain("Node ≥ 18");
+    expect(compatDoc).toContain("Bun ≥ 1.0");
+  });
+
+  test("mode→tool-name mapping: override registers grep/find/multi_grep", () => {
+    expect(indexTs).toMatch(/OVERRIDE_TOOL_NAMES/);
+    expect(indexTs).toMatch(/grep:\s*"grep"/);
+    expect(indexTs).toMatch(/find:\s*"find"/);
+    expect(indexTs).toMatch(/multiGrep:\s*"multi_grep"/);
+    expect(indexTs).toMatch(/FFF_TOOL_NAMES/);
+    expect(indexTs).toMatch(/multiGrep:\s*"fff-multi-grep"/);
+    // doc describes the mapping and the mention-disable rule
+    expect(compatDoc).toContain("`grep`/`find`/");
+    expect(compatDoc).toContain("PI_FFF_MULTIGREP");
+    expect(compatDoc).toContain("tools-only");
+    expect(compatDoc).toMatch(/mentions?/i);
+  });
+
+  test("mentions are disabled only in tools-only mode", () => {
+    expect(indexTs).toMatch(/currentMode !== "tools-only"/);
+    expect(compatDoc).toMatch(/disabled only in `tools-only`/);
   });
 });

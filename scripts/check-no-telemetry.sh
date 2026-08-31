@@ -6,16 +6,19 @@ set -euo pipefail
 SRC="${1:-packages/pi-tools/src}"
 FIXTURE="${2:-}"
 
-# Network API surface: fetch(, XMLHttpRequest, http:// or https:// used as a URL literal,
-# net. module, WebSocket. HTTPS URLs in comments/strings that are not runtime calls should
-# be listed in the allowlist below with a reason.
+# Network API surface: fetch(, XMLHttpRequest, WebSocket, node:http/https/net imports,
+# option-object http.get/http.request, Bun.connect, createServer, and https?:// URL literals.
+# HTTPS URLs in comments/strings that are not runtime calls must be listed in the allowlist
+# below with a reason.
+PATTERNS='fetch\(|XMLHttpRequest|WebSocket|node:(http|https|net)|Bun\.connect|https?\.(get|request)|createServer|https?://'
+
 ALLOWLIST=(
-  "https://pi.dev/docs/latest/packages"   # package metadata doc link (verify-pi-package-contract.mjs DOCS const)
-  "https://raw.githubusercontent.com"     # pi.image asset URL in package.json (gallery)
-  "https://github.com"                    # repository/homepage metadata
+  "https://pi.dev/docs/latest/packages"                        # package metadata doc link (verify-pi-package-contract.mjs DOCS const)
+  "https://raw.githubusercontent.com/GroepOnline/pi-tools"     # pi.image asset URL in package.json (gallery)
+  "https://github.com/GroepOnline/pi-tools"                    # repository/homepage/issues metadata
 )
 
-hits="$(grep -rnE "fetch\(|XMLHttpRequest|WebSocket|https?://|net\." "$SRC" 2>/dev/null || true)"
+hits="$(grep -rnE "$PATTERNS" "$SRC" 2>/dev/null || true)"
 
 if [[ -n "$FIXTURE" ]]; then
   hits="$(printf '%s\n' "$FIXTURE")"

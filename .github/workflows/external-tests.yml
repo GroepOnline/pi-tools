@@ -138,14 +138,26 @@ jobs:
         shell: bash
         run: make test-bun-compile
 
-      - name: 1.0-readiness gates (version-sync / no-telemetry / breaking-major)
+      - name: 1.0-readiness gate — version-sync
         shell: bash
         if: ${{ matrix.os != 'windows-latest' }}
         run: |
           scripts/check-version-sync.sh
+          echo "git version-sync: green"
+
+      - name: 1.0-readiness gate — no-telemetry
+        shell: bash
+        if: ${{ matrix.os != 'windows-latest' }}
+        run: |
           scripts/check-no-telemetry.sh
+          echo "git no-telemetry: green"
+
+      - name: 1.0-readiness gate — breaking-major
+        shell: bash
+        if: ${{ matrix.os != 'windows-latest' }}
+        run: |
           scripts/check-breaking-version.sh
-          echo "gates: all green"
+          echo "git breaking-major: green"
 
       - name: Install Node.js
         if: ${{ matrix.os != 'ubuntu-latest' }}
