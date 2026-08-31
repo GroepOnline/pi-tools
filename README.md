@@ -203,6 +203,8 @@ If you run one grep from a shell, `rg` is still the right tool. If you run dozen
 
 ### How it compares
 
+Performance claims are reproducible: run `scripts/benchmark-compare.sh` (pinned workloads, records tool version + commit + host, writes a JSON artifact) and link that artifact in any PR that changes the numbers below.
+
 - **ripgrep** — same regex engine, better plain-text matching, resident content index. Wins on repeated-search workloads, loses on "grep once from bash".
 - **fzf** — FFF is fuzzy like fzf, but also frecency-aware, git-aware and more typo-tolerant.
 - **Telescope / fzf-lua / snacks.picker** — FFF ships its own picker on the same core.

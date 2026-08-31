@@ -138,6 +138,15 @@ jobs:
         shell: bash
         run: make test-bun-compile
 
+      - name: 1.0-readiness gates (version-sync / no-telemetry / breaking-major)
+        shell: bash
+        if: ${{ matrix.os != 'windows-latest' }}
+        run: |
+          scripts/check-version-sync.sh
+          scripts/check-no-telemetry.sh
+          scripts/check-breaking-version.sh
+          echo "gates: all green"
+
       - name: Install Node.js
         if: ${{ matrix.os != 'ubuntu-latest' }}
         uses: actions/setup-node@v6
