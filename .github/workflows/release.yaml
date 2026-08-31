@@ -516,6 +516,14 @@ jobs:
         with:
           token: ${{ secrets.GUSTAV_PAT || github.token }}
 
+      - name: 1.0-readiness breaking-major guard
+        shell: bash
+        env:
+          PR_CHANGELOG: ${{ github.event.head_commit.message }}
+        run: |
+          scripts/check-breaking-version.sh --change-log "${PR_CHANGELOG:-}" --label "${{ contains(github.event.pull_request.labels.*.name, 'semver:major') && 'semver:major' || '' }}"
+          echo "breaking-major guard: green"
+
       - name: Install Lua
         uses: leafo/gh-actions-lua@v12
 
