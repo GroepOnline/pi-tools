@@ -1,14 +1,19 @@
 #!/usr/bin/env bash
 # check-version-sync.sh — fail if packages/pi-tools/package.json version != published npm version.
-# Usage: scripts/check-version-sync.sh [--npm-view-cmd "npm view ..."] [package-dir]
+# Usage: scripts/check-version-sync.sh [package-dir] [--npm-view-cmd "npm view ..."]
 # Override npm view for tests with: --npm-view-cmd 'echo 0.10.8'
+# Intentional release transitions (bump commit before npm publish) can override:
+#   PI_TOOLS_ALLOW_DRIFT=1 scripts/check-version-sync.sh
 set -euo pipefail
 
-PKG_DIR="${2:-packages/pi-tools}"
 NPM_VIEW="npm view @groeponline/pi-tools version"
-if [[ "${1:-}" == "--npm-view-cmd" ]]; then
+PKG_DIR="packages/pi-tools"
+
+if [[ $# -ge 1 && "$1" == "--npm-view-cmd" ]]; then
   NPM_VIEW="$2"
   PKG_DIR="${3:-packages/pi-tools}"
+elif [[ $# -ge 1 && "$1" != "--npm-view-cmd" ]]; then
+  PKG_DIR="$1"
 fi
 
 PKG_JSON="$PKG_DIR/package.json"
@@ -26,6 +31,10 @@ if [[ -z "$published" ]]; then
 fi
 
 if [[ "$repo_version" != "$published" ]]; then
+  if [[ "${PI_TOOLS_ALLOW_DRIFT:-}" == "1" ]]; then
+    echo "check-version-sync: OVERRIDE — version drift allowed (release window): repo=$repo_version published=$published" >&2
+    exit 0
+  fi
   echo "check-version-sync: VERSION DRIFT repo=$repo_version published=$published" >&2
   exit 1
 fi

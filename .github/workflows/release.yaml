@@ -521,7 +521,8 @@ jobs:
         env:
           PR_CHANGELOG: ${{ github.event.head_commit.message }}
         run: |
-          scripts/check-breaking-version.sh --change-log "${PR_CHANGELOG:-}" --label "${{ contains(github.event.pull_request.labels.*.name, 'semver:major') && 'semver:major' || '' }}"
+          PREV="$(npm view @groeponline/pi-tools version 2>/dev/null || true)"
+          scripts/check-breaking-version.sh --change-log "${PR_CHANGELOG:-}" --previous-version "${PREV:-}"
           echo "breaking-major guard: green"
 
       - name: Install Lua

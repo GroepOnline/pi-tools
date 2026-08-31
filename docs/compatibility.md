@@ -21,17 +21,23 @@ registered via `queueTool(() => toolNames.grep, …)` / `queueTool(() => toolNam
 
 ### Parameters
 
-Parameter shapes, defaults and allowed values are defined in `pi-tools.schema.json`
-(`properties`). Compatibility surface = the parameter **names**, **types**, **enums**, and
+Parameter shapes, defaults and allowed values are defined in the tool schemas in
+`packages/pi-tools/src/index.ts` (`grepSchema`, `findSchema`, `multiGrepSchema`).
+`pi-tools.schema.json` documents **config keys only** (mode, DB paths, scan toggles), not
+tool parameters. Compatibility surface = the parameter **names**, **types**, **enums**, and
 **defaults** for both tools, plus their pagination behavior:
 
-- **Pagination:** `fffind` results are returned in pages; the caller passes a page
-  offset/limit. The exact parameter names and defaults are in the schema
-  (`packages/pi-tools/pi-tools.schema.json`). Changing page semantics (offset→cursor,
-  page-size defaults, result ordering across pages) is a breaking change.
-- **Mode dependence:** `tools-only` mode registers only `fffind`/`ffgrep` (no picker UI);
-  `tools-and-ui` adds the file picker; `override` uses the Pi-side override config. A tool
-  disappearing when mode changes is expected; a mode value being removed is breaking.
+- **Pagination:** `fffind` results are returned in pages; the caller passes an opaque
+  **`cursor`** string returned by the previous result (server-side cursor cache storing
+  `pageSize` + `nextPageIndex`, cursor ids `1`, `2`, …) plus a **`limit`** parameter
+  (default 30, `DEFAULT_FIND_LIMIT`). There is no offset parameter. Changing the cursor
+  shape/semantics, page-size defaults, or result ordering across pages is a breaking change.
+- **Mode dependence:** `tools-and-ui` and `tools-only` register `fffind`/`ffgrep` (plus
+  `fff-multi-grep` when `PI_FFF_MULTIGREP=1`); `override` mode registers `grep`/`find`/
+  `multi_grep` instead (`resolveToolNames`/`OVERRIDE_TOOL_NAMES` in `src/index.ts`).
+  The file picker UI exists only in `tools-and-ui`; the `@`-mention completion surface is
+  disabled only in `tools-only` (`shouldEnableMentions`: `currentMode !== 'tools-only'`).
+  A tool disappearing when mode changes is expected; a mode value being removed is breaking.
 
 ### Config precedence
 
@@ -69,15 +75,16 @@ The published package's supported runtimes and the CI jobs that prove them:
 
 | Runtime | Version floor | CI evidence |
 |---|---|---|
-| Pi extension host (Bun) | Bun ≥ 1.2 (bundled runtime) | `external-tests.yml` e2e, `lua.yml`, `rust.yml` |
-| Node (SDK consumers) | Node ≥ 20 (`fff-node`) | `external-tests.yml` + `rust.yml` (`FORCE_JAVASCRIPT_ACTIONS_TO_NODE24`) |
-| Bun (SDK consumers) | `fff-bun` engines | `external-tests.yml` + `lua.yml` |
-| Python | `fff-python` (pyproject requires-python) | `python.yml` |
+| Pi extension host (Bundled runtime) | Bun ≥ 1.0 (`fff-bun` engines `>=1.0.0`) | `external-tests.yml` e2e, `lua.yml`, `rust.yml` |
+| Node (SDK consumers) | Node ≥ 18 (`fff-node` engines `>=18.0.0`) | `external-tests.yml` (runs Node 25, ≥ floor), `rust.yml` |
+| Bun (SDK consumers) | Bun ≥ 1.0 (`fff-bun` engines `>=1.0.0`) | `external-tests.yml`, `lua.yml` |
+| Python | `fff-python` `requires-python >=3.10` | `python.yml` |
 | Neovim (Lua picker) | fff.nvim compat | `lua.yml` + `panvimdoc.yaml` |
 
 Exact floors are read from the owning manifests (`packages/fff-bun/package.json`,
-`packages/fff-node/package.json`, `packages/fff-python/pyproject.toml`). A runtime listed
-here without a corresponding CI job is a release blocker — add the job or drop the claim.
+`packages/fff-node/package.json`, `packages/fff-python/pyproject.toml`) — if a manifest
+floor changes, update this table in the same change. A runtime listed here without a
+corresponding CI job is a release blocker — add the job or drop the claim.
 
 ## Local-only / no-telemetry boundary
 
@@ -113,9 +120,11 @@ Enforced by `scripts/check-no-telemetry.sh` (greps extension source for network 
 Public performance claims (e.g. README "way faster than ripgrep/fzf") must be backed by a
 reproducible measurement:
 
-- `scripts/benchmark-compare.sh` builds the release binary, runs the pinned workloads, runs
-  ripgrep/fzf equivalents, and writes a JSON artifact recording tool version, commit SHA,
-  CPU/host, and measurements.
+- `scripts/benchmark-compare.sh` builds the shipped release binary (`fff-mcp`), runs the
+  pinned workloads, runs ripgrep/fzf equivalents on the same queries, and writes a JSON
+  artifact recording tool version, commit SHA, CPU/host, and per-measurement samples. It
+  fails when a measured command is missing — a `0 ms` value can only mean a real
+  measurement, never `command not found`.
 - The README must link the script and the latest artifact instead of asserting raw numbers.
 
 ## Enforcement overlap
