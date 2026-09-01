@@ -35,9 +35,9 @@ if [[ -z "$PREV_VERSION" ]]; then
   PREV_VERSION="$(npm view @groeponline/pi-tools version 2>/dev/null || true)"
 fi
 
-# Detect a breaking-claim in the change log: conventional "breaking:" prefix or "BREAKING CHANGE".
+# Detect breaking claims in trailers/prefixes and Conventional Commit headers such as feat!: / fix(scope)!:.
 is_breaking=""
-if [[ -n "$CHANGE_LOG" ]] && printf '%s\n' "$CHANGE_LOG" | grep -qiE "^(breaking|break):|BREAKING CHANGE"; then
+if [[ -n "$CHANGE_LOG" ]] && printf '%s\n' "$CHANGE_LOG" | grep -qiE '^((breaking|break):|[[:alnum:]_-]+(\([^)]*\))?!:)|BREAKING[[:space:]]+CHANGE'; then
   is_breaking="yes"
 fi
 
