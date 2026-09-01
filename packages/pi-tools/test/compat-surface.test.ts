@@ -66,8 +66,10 @@ describe("compatibility surface (docs/compatibility.md vs code)", () => {
   test("env names in doc match code read paths", () => {
     expect(compatDoc).toContain("PI_FFF_MODE");
     expect(indexTs).toContain('"PI_FFF_MODE"');
-    expect(compatDoc).toContain("FFF_FRECENCY_DB");
-    expect(compatDoc).toContain("FFF_HISTORY_DB");
+    for (const envName of ["FFF_FRECENCY_DB", "FFF_HISTORY_DB", "FFF_ENABLE_ROOT_SCAN", "FFF_ENABLE_HOME_SCAN"]) {
+      expect(compatDoc).toContain(envName);
+      expect(indexTs).toContain(`"${envName}"`);
+    }
     // defaults documented in the precedence table
     expect(compatDoc).toContain("`tools-and-ui`");
     // config precedence chain is documented in order flag > env > config > default
@@ -102,9 +104,13 @@ describe("compatibility surface (docs/compatibility.md vs code)", () => {
     ).engines.bun;
     expect(fffNodeEngines).toBe(">=18.0.0");
     expect(fffBunEngines).toBe(">=1.0.0");
+    const pythonManifest = fs.readFileSync(path.join(REPO_ROOT, "packages", "fff-python", "pyproject.toml"), "utf8");
+    const pythonFloor = pythonManifest.match(/requires-python\s*=\s*"([^"]+)"/)?.[1];
+    expect(pythonFloor).toBe(">=3.10");
     // doc table states the same floors
     expect(compatDoc).toContain("Node ≥ 18");
     expect(compatDoc).toContain("Bun ≥ 1.0");
+    expect(compatDoc).toContain("`requires-python >=3.10`");
   });
 
   test("mode→tool-name mapping: override registers grep/find/multi_grep", () => {

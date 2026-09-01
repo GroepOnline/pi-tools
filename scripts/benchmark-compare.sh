@@ -31,21 +31,27 @@ done
 command -v rg >/dev/null 2>&1 || { echo "benchmark-compare: rg not found (apt install ripgrep)" >&2; exit 1; }
 command -v fzf >/dev/null 2>&1 || { echo "benchmark-compare: fzf not found (apt install fzf)" >&2; exit 1; }
 
-# FFF binary: prefer a real `fff` on PATH; otherwise build the shipped fff-mcp server.
+# FFF binary must come from this repository so the recorded commit identifies the measured code.
 FFF_CMD=""
-if command -v fff >/dev/null 2>&1; then
-  FFF_CMD="$(command -v fff)"
-elif [[ -z "$SKIP_FFF" ]]; then
-  if [[ ! -x "$REPO/target/release/fff-mcp" ]]; then
-    echo "benchmark-compare: building fff-mcp (target/release/fff-mcp)..." >&2
-    (cd "$REPO" && cargo build --release --bin fff-mcp) >&2
-  fi
+if [[ -z "$SKIP_FFF" ]]; then
+  echo "benchmark-compare: building repository fff-mcp (target/release/fff-mcp)..." >&2
+  (cd "$REPO" && cargo build --release --bin fff-mcp) >&2
   FFF_CMD="$REPO/target/release/fff-mcp"
+fi
+
+# Workloads are reproducibility inputs: require a clean Git worktree and pin its full commit.
+if ! WORKLOAD_REV="$(git -C "$WORKLOAD" rev-parse HEAD 2>/dev/null)"; then
+  echo "benchmark-compare: workload must be a Git worktree with a pinned revision: $WORKLOAD" >&2
+  exit 1
+fi
+if [[ -n "$(git -C "$WORKLOAD" status --porcelain --untracked-files=normal)" ]]; then
+  echo "benchmark-compare: workload must be clean so revision $WORKLOAD_REV identifies its contents" >&2
+  exit 1
 fi
 
 mkdir -p "$(dirname "$OUT")"
 
-export BENCH_OUT="$OUT" BENCH_WORKLOAD="$WORKLOAD" BENCH_COMMIT="$COMMIT" BENCH_VERSION="$VERSION" \
+export BENCH_OUT="$OUT" BENCH_WORKLOAD="$WORKLOAD" BENCH_WORKLOAD_REV="$WORKLOAD_REV" BENCH_COMMIT="$COMMIT" BENCH_VERSION="$VERSION" \
   BENCH_CPU="$CPU" BENCH_FFF_CMD="$FFF_CMD" BENCH_SKIP_FFF="$SKIP_FFF"
 
 python3 - <<'PY'
@@ -59,6 +65,7 @@ from datetime import datetime, timezone
 
 out = os.environ["BENCH_OUT"]
 workload = os.environ["BENCH_WORKLOAD"]
+workload_rev = os.environ["BENCH_WORKLOAD_REV"]
 commit = os.environ["BENCH_COMMIT"]
 version = os.environ["BENCH_VERSION"]
 cpu = os.environ["BENCH_CPU"]
@@ -92,8 +99,10 @@ def timed_samples(argv, stdin):
     for _ in range(SAMPLES):
         t0 = time.perf_counter()
         try:
-            subprocess.run(argv, input=stdin, cwd=workload, timeout=TIMEOUT,
-                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            result = subprocess.run(argv, input=stdin, cwd=workload, timeout=TIMEOUT,
+                                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            if result.returncode != 0:
+                raise RuntimeError(f"{argv[0]} exited {result.returncode}")
         except (subprocess.TimeoutExpired, OSError) as e:
             raise RuntimeError(f"{argv[0]}: {e}")
         samples.append((time.perf_counter() - t0) * 1000.0)
@@ -126,7 +135,10 @@ def rg_build(q):
 
 
 # fzf leg needs a stable file listing as its search space (non-interactive --filter).
-listing = subprocess.run(["rg", "--files"], cwd=workload, timeout=60, capture_output=True).stdout
+listing_result = subprocess.run(["rg", "--files"], cwd=workload, timeout=60, capture_output=True)
+if listing_result.returncode != 0:
+    raise RuntimeError(f"rg --files exited {listing_result.returncode}")
+listing = listing_result.stdout
 
 
 def fzf_build(q):
@@ -149,6 +161,7 @@ artifact = {
     "cpu": cpu,
     "date": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
     "workload": workload,
+    "workload_revision": workload_rev,
     "queries": QUERIES,
     "found": {k.removesuffix("_ms_avg"): v["found"] for k, v in measurements.items()},
     "measurements": {k: v["avg_ms"] for k, v in measurements.items()},
@@ -160,7 +173,7 @@ with open(out, "w") as f:
     f.write("\n")
 
 # Self-check (plan TS-13): required keys exist and rg/fzf were really measured.
-required = ["commit", "tool_version", "queries", "measurements"]
+required = ["commit", "tool_version", "workload_revision", "queries", "measurements"]
 missing = [k for k in required if k not in artifact]
 if missing:
     print(f"benchmark-compare: artifact missing keys {missing}", file=sys.stderr)
