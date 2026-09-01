@@ -66,7 +66,12 @@ describe("compatibility surface (docs/compatibility.md vs code)", () => {
   test("env names in doc match code read paths", () => {
     expect(compatDoc).toContain("PI_FFF_MODE");
     expect(indexTs).toContain('"PI_FFF_MODE"');
-    for (const envName of ["FFF_FRECENCY_DB", "FFF_HISTORY_DB", "FFF_ENABLE_ROOT_SCAN", "FFF_ENABLE_HOME_SCAN"]) {
+    for (const envName of [
+      "FFF_FRECENCY_DB",
+      "FFF_HISTORY_DB",
+      "FFF_ENABLE_ROOT_SCAN",
+      "FFF_ENABLE_HOME_SCAN",
+    ]) {
       expect(compatDoc).toContain(envName);
       expect(indexTs).toContain(`"${envName}"`);
     }
@@ -104,7 +109,10 @@ describe("compatibility surface (docs/compatibility.md vs code)", () => {
     ).engines.bun;
     expect(fffNodeEngines).toBe(">=18.0.0");
     expect(fffBunEngines).toBe(">=1.0.0");
-    const pythonManifest = fs.readFileSync(path.join(REPO_ROOT, "packages", "fff-python", "pyproject.toml"), "utf8");
+    const pythonManifest = fs.readFileSync(
+      path.join(REPO_ROOT, "packages", "fff-python", "pyproject.toml"),
+      "utf8",
+    );
     const pythonFloor = pythonManifest.match(/requires-python\s*=\s*"([^"]+)"/)?.[1];
     expect(pythonFloor).toBe(">=3.10");
     // doc table states the same floors
