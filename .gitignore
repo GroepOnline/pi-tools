@@ -96,3 +96,12 @@ Pods/
 .env
 .env.local
 .env.*.local
+
+# Local agent adapter state (never product code)
+.claude/
+.commandcode/
+.codex/
+.devin/
+.factory/
+.jules/
+.remember/
