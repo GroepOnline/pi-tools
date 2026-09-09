@@ -36,6 +36,16 @@
       "type": "boolean",
       "default": true,
       "description": "Allows indexing when pi is launched from the home directory."
+    },
+    "enableTgrep": {
+      "type": "boolean",
+      "default": true,
+      "description": "Registers the tgrep trigram-index search tool when the tgrep binary is found."
+    },
+    "tgrepBinPath": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Explicit path to the tgrep binary (overrides TGREP_BIN and PATH lookup)."
     }
   }
 }

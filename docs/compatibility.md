@@ -8,21 +8,22 @@
 
 ## Tool surface
 
-The extension registers two custom tools and one completion surface (names resolved from
-mode; see below):
+The extension registers two FFF tools, an optional `tgrep` tool, and one completion surface
+(FFF names resolved from mode; see below):
 
 | Tool | Purpose |
 |---|---|
 | `fffind` | Typo-resistant file discovery + frecency-ranked access |
 | `ffgrep` | SIMD content search |
+| `tgrep` | Trigram-indexed content search via an external binary (registered only when found) |
 
-Source of truth: `packages/pi-tools/src/index.ts:52-53` (`grep: "ffgrep", find: "fffind"`),
+Source of truth: `packages/pi-tools/src/index.ts:60` (`FFF_TOOL_NAMES`: `grep: "ffgrep", find: "fffind"`), `tgrep` via `queueTool(() => TGREP_TOOL_NAME, …)` gated on `resolveTgrepBinary` (`src/tgrep.ts`),
 registered via `queueTool(() => toolNames.grep, …)` / `queueTool(() => toolNames.find, …)`.
 
 ### Parameters
 
 Parameter shapes, defaults and allowed values are defined in the tool schemas in
-`packages/pi-tools/src/index.ts` (`grepSchema`, `findSchema`, `multiGrepSchema`).
+`packages/pi-tools/src/index.ts` (`grepSchema`, `findSchema`, `multiGrepSchema`, `tgrepSchema`).
 `pi-tools.schema.json` documents **config keys only** (mode, DB paths, scan toggles), not
 tool parameters. Compatibility surface = the parameter **names**, **types**, **enums**, and
 **defaults** for both tools, plus their pagination behavior:
@@ -38,12 +39,18 @@ tool parameters. Compatibility surface = the parameter **names**, **types**, **e
   The file picker UI exists only in `tools-and-ui`; the `@`-mention completion surface is
   disabled only in `tools-only` (`shouldEnableMentions`: `currentMode !== 'tools-only'`).
   A tool disappearing when mode changes is expected; a mode value being removed is breaking.
+- **Exit codes (`tgrep`):** exit `0` returns `file:line:col:text` rows, exit `1` reports
+  `No matches found` (not a failure), exit `2` throws with the stderr cause. A leading
+  `[tgrep: ...]` line always carries the binary's stderr, including the "no index"
+  freshness warning. Output truncates at `TGREP_OUTPUT_MAX_BYTES` with a narrowing hint.
+  `tgrep` is mode-independent: it keeps its name in every mode and is gated only on
+  binary availability plus `enableTgrep`.
 
 ### Config precedence
 
 Config values are resolved in this priority order
-(`packages/pi-tools/src/index.ts:272` `getConfigValue`, read at startup
-`resolveStartupConfig`):
+(`packages/pi-tools/src/index.ts:291` `getConfigValue`, read at startup
+`resolveStartupConfig`; `tgrep` resolves once at extension load):
 
 ```
 flag (--fff-mode / --fff-frecency-db / --fff-history-db / …)
@@ -61,6 +68,8 @@ Concrete defaults:
 | history DB | `--fff-history-db` | `FFF_HISTORY_DB` | `config.historyDbPath` | (platform db path) |
 | root scan | `--fff-enable-root-scan` | `FFF_ENABLE_ROOT_SCAN` | `config.enableFsRootScanning` | `false` |
 | home scan | `--fff-enable-home-scan` | `FFF_ENABLE_HOME_SCAN` | `config.enableHomeDirScanning` | `true` |
+| tgrep binary | — (no CLI flag by design) | `TGREP_BIN` | `config.tgrepBinPath` | `PATH` lookup |
+| tgrep toggle | — (config file only) | — | `config.enableTgrep` | `true` |
 
 Mode valid values (`packages/pi-tools/src/config.ts:8` `VALID_MODES`):
 `tools-and-ui`, `tools-only`, `override`.

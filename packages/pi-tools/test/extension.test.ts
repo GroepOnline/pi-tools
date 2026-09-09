@@ -187,6 +187,7 @@ const CONFIG_ENV_KEYS = [
   "FFF_HISTORY_DB",
   "FFF_ENABLE_ROOT_SCAN",
   "FFF_ENABLE_HOME_SCAN",
+  "TGREP_BIN",
 ] as const;
 
 const savedEnv: Record<string, string | undefined> = {};
@@ -703,5 +704,123 @@ describe("pi-tools autocomplete registration", () => {
     expect(shouldTrigger).toBe(false);
     expect(current.applyCompletion).toHaveBeenCalledTimes(1);
     expect(current.shouldTriggerFileCompletion).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("pi-tools tgrep integration", () => {
+  let binDir = "";
+
+  function writeFakeBin(name: string, body: string): string {
+    binDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-tools-tgrep-"));
+    const bin = path.join(binDir, name);
+    fs.writeFileSync(bin, `#!/bin/sh\n${body}\n`);
+    fs.chmodSync(bin, 0o755);
+    return bin;
+  }
+
+  function toolNames(setup: { pi: { registerTool: any } }): string[] {
+    return setup.pi.registerTool.mock.calls.map(([tool]: [any]) => tool.name);
+  }
+
+  test("registers tgrep and tgrep-status when the binary is found", async () => {
+    process.env.TGREP_BIN = writeFakeBin("tgrep", "exit 1");
+    const setup = await start();
+    try {
+      expect(toolNames(setup)).toContain("tgrep");
+      expect(setup.commands.has("tgrep-status")).toBe(true);
+    } finally {
+      await shutdown(setup);
+      fs.rmSync(binDir, { recursive: true, force: true });
+    }
+  });
+
+  test("skips tgrep when the binary is missing", async () => {
+    process.env.TGREP_BIN = "/nonexistent/tgrep";
+    const setup = await start();
+    try {
+      expect(toolNames(setup)).not.toContain("tgrep");
+      expect(setup.commands.has("tgrep-status")).toBe(true);
+    } finally {
+      await shutdown(setup);
+    }
+  });
+
+  test("skips tgrep when enableTgrep is false", async () => {
+    process.env.TGREP_BIN = writeFakeBin("tgrep", "exit 1");
+    writeConfig({ enableTgrep: false });
+    const setup = await start();
+    try {
+      expect(toolNames(setup)).not.toContain("tgrep");
+    } finally {
+      await shutdown(setup);
+      fs.rmSync(binDir, { recursive: true, force: true });
+    }
+  });
+
+  test("executes searches through the binary and reports no-match", async () => {
+    const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "pi-tools-tgrep-cwd-"));
+    process.env.TGREP_BIN = writeFakeBin("tgrep", "exit 1");
+    const setup = await start(undefined, cwd);
+    try {
+      const tool = setup.pi.registerTool.mock.calls
+        .map(([t]: [any]) => t)
+        .find((t: any) => t.name === "tgrep");
+      expect(tool).toBeDefined();
+      const result = await tool.execute("call-1", { pattern: "hello" }, undefined);
+      expect(result.content[0].text).toBe("No matches found");
+    } finally {
+      await shutdown(setup);
+      fs.rmSync(binDir, { recursive: true, force: true });
+      fs.rmSync(cwd, { recursive: true, force: true });
+    }
+  });
+
+  test("returns vimgrep rows from the binary", async () => {
+    const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "pi-tools-tgrep-cwd-"));
+    process.env.TGREP_BIN = writeFakeBin("tgrep", "printf 'src/a.ts:3:7:hello\\n'");
+    const setup = await start(undefined, cwd);
+    try {
+      const tool = setup.pi.registerTool.mock.calls
+        .map(([t]: [any]) => t)
+        .find((t: any) => t.name === "tgrep");
+      const result = await tool.execute(
+        "call-1",
+        { pattern: "hello", path: "src/" },
+        undefined,
+      );
+      expect(result.content[0].text).toBe("src/a.ts:3:7:hello");
+    } finally {
+      await shutdown(setup);
+      fs.rmSync(binDir, { recursive: true, force: true });
+      fs.rmSync(cwd, { recursive: true, force: true });
+    }
+  });
+
+  test("/tgrep-status reports the server status", async () => {
+    const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "pi-tools-tgrep-cwd-"));
+    process.env.TGREP_BIN = writeFakeBin("tgrep", "echo 'Indexing: complete'");
+    const setup = await start(undefined, cwd);
+    try {
+      await setup.commands.get("tgrep-status").handler("", setup.ctx);
+      expect(setup.ctx.ui.notify).toHaveBeenCalledWith("Indexing: complete", "info");
+    } finally {
+      await shutdown(setup);
+      fs.rmSync(binDir, { recursive: true, force: true });
+      fs.rmSync(cwd, { recursive: true, force: true });
+    }
+  });
+
+  test("/tgrep-status warns without a binary", async () => {
+    process.env.TGREP_BIN = "/nonexistent/tgrep";
+    const setup = await start();
+    try {
+      await setup.commands.get("tgrep-status").handler("", setup.ctx);
+      expect(setup.ctx.ui.notify).toHaveBeenCalledWith(
+        "tgrep binary not found (TGREP_BIN or PATH)",
+        "warning",
+      );
+    } finally {
+      await shutdown(setup);
+    }
   });
 });

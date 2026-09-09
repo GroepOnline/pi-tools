@@ -31,6 +31,8 @@ describe("loadConfig", () => {
       historyDbPath: "/data/history",
       enableFsRootScanning: true,
       enableHomeDirScanning: false,
+      enableTgrep: false,
+      tgrepBinPath: "/usr/local/bin/tgrep",
     };
     writeConfig(config);
 
@@ -66,6 +68,8 @@ describe("loadConfig", () => {
       [{ historyDbPath: false }, '"historyDbPath" must be a non-empty string'],
       [{ enableFsRootScanning: 1 }, '"enableFsRootScanning" must be a boolean'],
       [{ enableHomeDirScanning: "false" }, '"enableHomeDirScanning" must be a boolean'],
+      [{ enableTgrep: "yes" }, '"enableTgrep" must be a boolean'],
+      [{ tgrepBinPath: "" }, '"tgrepBinPath" must be a non-empty string'],
     ];
 
     for (const [config, message] of cases) {

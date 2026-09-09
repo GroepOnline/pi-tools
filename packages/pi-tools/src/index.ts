@@ -23,6 +23,15 @@ import { type FffMode, loadConfig, VALID_MODES } from "./config";
 import { FilePickerFactory } from "./file-picker";
 import { isHomeDir, resolveDbPaths } from "./paths";
 import { buildQuery } from "./query";
+import {
+  buildTgrepArgs,
+  resolveSearchRoot,
+  resolveTgrepBinary,
+  runTgrep,
+  TGREP_BIN_ENV,
+  TGREP_CONTEXT_MAX,
+  TGREP_TOOL_NAME,
+} from "./tgrep";
 
 export { SCAN_TIMEOUT_MS } from "./sdk";
 
@@ -267,6 +276,16 @@ export default function fffExtension(pi: ExtensionAPI) {
   let activeCwd = process.cwd();
 
   const config = loadConfig();
+
+  // tgrep availability is session-independent: resolve once at load so the
+  // tool surface is fixed before registration. Explicit path wins over PATH.
+  const tgrepBin: string | undefined =
+    config.enableTgrep === false
+      ? undefined
+      : resolveTgrepBinary(
+          process.env[TGREP_BIN_ENV]?.trim() || config.tgrepBinPath,
+          process.env.PATH,
+        );
 
   // Resolve startup options with flag > environment > file > fallback.
   function getConfigValue<T>(
@@ -1168,6 +1187,115 @@ export default function fffExtension(pi: ExtensionAPI) {
     });
   }
 
+  // tgrep is mode-independent and binary-gated: no binary, no tool.
+  if (tgrepBin !== undefined) {
+    const bin = tgrepBin;
+    const tgrepSchema = Type.Object({
+      pattern: Type.String({
+        description:
+          "Search pattern. Literal text by default; set literal: false for regex.",
+      }),
+      path: Type.Optional(
+        Type.String({
+          description:
+            "Directory or file to search, relative to the workspace (default: workspace root). Globs go in glob.",
+        }),
+      ),
+      glob: Type.Optional(
+        Type.Union([Type.String(), Type.Array(Type.String())], {
+          description: "Repeatable file glob filter, e.g. '*.{ts,tsx}'.",
+        }),
+      ),
+      fileType: Type.Optional(
+        Type.Union([Type.String(), Type.Array(Type.String())], {
+          description: "Repeatable file type filter, e.g. 'rust', 'py', 'js'.",
+        }),
+      ),
+      literal: Type.Optional(
+        Type.Boolean({
+          description:
+            "Treat pattern as literal text (default true). Set false for regex.",
+        }),
+      ),
+      caseSensitive: Type.Optional(
+        Type.Boolean({
+          description: "Force case-sensitive matching. Default is smart-case.",
+        }),
+      ),
+      wholeWord: Type.Optional(Type.Boolean({ description: "Match whole words only." })),
+      filesOnly: Type.Optional(
+        Type.Boolean({ description: "Print only filenames with matches." }),
+      ),
+      count: Type.Optional(Type.Boolean({ description: "Print match count per file." })),
+      context: Type.Optional(
+        Type.Number({
+          description: `Context lines before+after each match (0-${TGREP_CONTEXT_MAX})`,
+        }),
+      ),
+      maxCount: Type.Optional(Type.Number({ description: "Limit matches per file." })),
+      noIndex: Type.Optional(
+        Type.Boolean({
+          description:
+            "Read files from disk instead of the index. Use after your own edits when the latest content must be visible.",
+        }),
+      ),
+    });
+
+    queueTool(() => TGREP_TOOL_NAME, {
+      description: `Trigram-indexed content search for large repos (tgrep). Literal by default, vimgrep output. Falls back to a full scan with a stderr warning when no index exists. Default limit is output-capped; narrow with fileType/glob.`,
+      promptSnippet: "Trigram-indexed content search",
+      promptGuidelines: (names) => [
+        `${names.grep}: prefer for fuzzy/frecency-ranked search on small and medium repos.`,
+        `${TGREP_TOOL_NAME}: prefer on large repos with a built tgrep index; fastest path.`,
+        `${TGREP_TOOL_NAME}: keep literal: true (default) for symbols; set false for regex.`,
+        `${TGREP_TOOL_NAME}: narrow with fileType/glob before raising maxCount.`,
+        `${TGREP_TOOL_NAME}: use filesOnly: true first on broad queries, then search specific files.`,
+        `${TGREP_TOOL_NAME}: after your own edits, pass noIndex: true or use ${names.grep}; the index lags watcher events.`,
+        `${TGREP_TOOL_NAME}: a '[tgrep: ...]' line reports index freshness, never drop it from summaries.`,
+      ],
+      parameters: tgrepSchema,
+
+      async execute(_toolCallId, params, signal) {
+        if (signal?.aborted) throw new Error("Operation aborted");
+        const root = resolveSearchRoot(params.path, activeCwd);
+        const output = await runTgrep(
+          bin,
+          buildTgrepArgs({
+            pattern: params.pattern,
+            root,
+            literal: params.literal,
+            caseSensitive: params.caseSensitive,
+            wholeWord: params.wholeWord,
+            fileType: params.fileType,
+            glob: params.glob,
+            filesOnly: params.filesOnly,
+            count: params.count,
+            context: params.context,
+            maxCount: params.maxCount,
+            noIndex: params.noIndex,
+          }),
+          { cwd: activeCwd, signal },
+        );
+        return { content: [{ type: "text", text: output }], details: {} };
+      },
+
+      renderCall(args, theme, context) {
+        const text = (context.lastComponent as Text | undefined) ?? new Text("", 0, 0);
+        text.setText(
+          theme.fg("toolTitle", theme.bold(TGREP_TOOL_NAME)) +
+            " " +
+            theme.fg("accent", `/${args?.pattern ?? ""}/`) +
+            theme.fg("toolOutput", ` in ${args?.path ?? "."}`),
+        );
+        return text;
+      },
+
+      renderResult(result, options, theme, context) {
+        return renderTextResult(result, options, theme, context, 15);
+      },
+    });
+  }
+
   pi.registerCommand("fff-mode", {
     description: "Show or set FFF mode: /fff-mode [tools-and-ui | tools-only | override]",
     handler: async (args, ctx) => {
@@ -1260,6 +1388,28 @@ export default function fffExtension(pi: ExtensionAPI) {
       }
 
       ctx.ui.notify("FFF rescan triggered", "info");
+    },
+  });
+
+  pi.registerCommand("tgrep-status", {
+    description: "Show tgrep index and server status for the workspace",
+    handler: async (_args, ctx) => {
+      const bin = tgrepBin;
+      if (!bin) {
+        ctx.ui.notify("tgrep binary not found (TGREP_BIN or PATH)", "warning");
+        return;
+      }
+      try {
+        const output = await runTgrep(bin, ["status", activeCwd], {
+          cwd: activeCwd,
+        });
+        ctx.ui.notify(output || "tgrep status: no output", "info");
+      } catch (error: unknown) {
+        ctx.ui.notify(
+          `tgrep status failed: ${error instanceof Error ? error.message : String(error)}`,
+          "error",
+        );
+      }
     },
   });
 }

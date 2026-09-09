@@ -16,6 +16,8 @@ export interface FffConfig {
   historyDbPath?: string;
   enableFsRootScanning?: boolean;
   enableHomeDirScanning?: boolean;
+  enableTgrep?: boolean;
+  tgrepBinPath?: string;
 }
 
 const CONFIG_KEYS = new Set<keyof FffConfig>([
@@ -25,6 +27,8 @@ const CONFIG_KEYS = new Set<keyof FffConfig>([
   "historyDbPath",
   "enableFsRootScanning",
   "enableHomeDirScanning",
+  "enableTgrep",
+  "tgrepBinPath",
 ]);
 
 export function loadConfig(agentDir = piDataDir()): FffConfig {
@@ -75,8 +79,10 @@ export function loadConfig(agentDir = piDataDir()): FffConfig {
   validateString(configPath, parsed, "$schema");
   validateString(configPath, parsed, "frecencyDbPath");
   validateString(configPath, parsed, "historyDbPath");
+  validateString(configPath, parsed, "tgrepBinPath");
   validateBoolean(configPath, parsed, "enableFsRootScanning");
   validateBoolean(configPath, parsed, "enableHomeDirScanning");
+  validateBoolean(configPath, parsed, "enableTgrep");
 
   return parsed as FffConfig;
 }
@@ -96,7 +102,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 function validateString(
   configPath: string,
   config: Record<string, unknown>,
-  key: "$schema" | "frecencyDbPath" | "historyDbPath",
+  key: "$schema" | "frecencyDbPath" | "historyDbPath" | "tgrepBinPath",
 ): void {
   const value = config[key];
   if (value !== undefined && (typeof value !== "string" || value.length === 0)) {
@@ -107,7 +113,7 @@ function validateString(
 function validateBoolean(
   configPath: string,
   config: Record<string, unknown>,
-  key: "enableFsRootScanning" | "enableHomeDirScanning",
+  key: "enableFsRootScanning" | "enableHomeDirScanning" | "enableTgrep",
 ): void {
   const value = config[key];
   if (value !== undefined && typeof value !== "boolean") {
