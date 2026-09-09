@@ -96,3 +96,6 @@ Pods/
 .env
 .env.local
 .env.*.local
+
+# tgrep trigram indexes (per-repo, rebuilt via `tgrep index .`)
+.tgrep/
