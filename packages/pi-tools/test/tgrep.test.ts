@@ -307,7 +307,16 @@ describe("formatTgrepResult", () => {
     const out = formatTgrepResult({ exit: 0, stdout: big, stderr: "" });
     expect(out).toContain("truncated");
     expect(out).toContain("fileType/glob");
-    expect(Buffer.byteLength(out)).toBeLessThan(Buffer.byteLength(big) + 200);
+    expect(Buffer.byteLength(out)).toBeLessThanOrEqual(TGREP_OUTPUT_MAX_BYTES);
+  });
+
+  test("keeps a stderr notice plus body within the output byte cap", () => {
+    const warning = "warning: stale index";
+    const body = "x".repeat(TGREP_OUTPUT_MAX_BYTES);
+    const out = formatTgrepResult({ exit: 0, stdout: body, stderr: warning });
+    expect(out.startsWith(`[tgrep: ${warning}]\n`)).toBe(true);
+    expect(out).toContain("truncated");
+    expect(Buffer.byteLength(out)).toBeLessThanOrEqual(TGREP_OUTPUT_MAX_BYTES);
   });
 
   test("measures truncation in bytes for multibyte output and preserves warnings", () => {
@@ -321,6 +330,7 @@ describe("formatTgrepResult", () => {
     expect(out.startsWith("[tgrep: warning: stale index]\n")).toBe(true);
     expect(out).not.toContain("\uFFFD");
     expect(out).not.toContain("ignored diagnostic");
+    expect(Buffer.byteLength(out)).toBeLessThanOrEqual(TGREP_OUTPUT_MAX_BYTES);
     const hint = out.match(/\[truncated (\d+) bytes: narrow with fileType\/glob\]/);
     expect(hint).not.toBeNull();
     expect(Number(hint![1])).toBeGreaterThanOrEqual(

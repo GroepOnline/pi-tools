@@ -193,19 +193,27 @@ export function formatTgrepResult(result: TgrepResult): string {
   const notice = warning ? `[tgrep: ${warning}]\n` : "";
   if (result.exit === 2)
     throw new Error(`tgrep search failed: ${warning || "unknown error"}`);
-  const body = truncateBytes(result.stdout.trim());
+  const budget = Math.max(0, TGREP_OUTPUT_MAX_BYTES - Buffer.byteLength(notice));
+  const body = truncateBytes(result.stdout.trim(), budget);
   if (result.exit === 1 || body === "") return `${notice}No matches found`;
   return `${notice}${body}`;
 }
 
 /** Truncates oversized output on a UTF-8 character boundary. */
-function truncateBytes(text: string): string {
+function truncateBytes(text: string, maxBytes = TGREP_OUTPUT_MAX_BYTES): string {
   const buf = Buffer.from(text);
-  if (buf.length <= TGREP_OUTPUT_MAX_BYTES) return text;
-  let end = TGREP_OUTPUT_MAX_BYTES;
+  if (buf.length <= maxBytes) return text;
+  const hint = (omitted: number) =>
+    `\n… [truncated ${omitted} bytes: narrow with fileType/glob]`;
+  const reserved = Buffer.byteLength(hint(buf.length));
+  if (reserved >= maxBytes) {
+    let end = maxBytes;
+    while (end > 0 && (buf[end] & 0xc0) === 0x80) end--;
+    return buf.subarray(0, end).toString();
+  }
+  let end = maxBytes - reserved;
   while (end > 0 && (buf[end] & 0xc0) === 0x80) end--;
-  const head = buf.subarray(0, end).toString();
-  return `${head}\n… [truncated ${buf.length - end} bytes: narrow with fileType/glob]`;
+  return `${buf.subarray(0, end).toString()}${hint(buf.length - end)}`;
 }
 
 /** Normalizes context to the supported non-negative integer range. */
