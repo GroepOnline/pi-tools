@@ -203,6 +203,25 @@ describe("resolveTgrepBinary", () => {
       fs.rmSync(second, { recursive: true, force: true });
     }
   });
+
+  test("skips executable directories named tgrep", () => {
+    const first = fs.mkdtempSync(path.join(os.tmpdir(), "tgrep-path-directory-"));
+    const second = fs.mkdtempSync(path.join(os.tmpdir(), "tgrep-path-file-"));
+    try {
+      fs.mkdirSync(path.join(first, "tgrep"));
+      fs.chmodSync(path.join(first, "tgrep"), 0o755);
+      const executable = path.join(second, "tgrep");
+      fs.writeFileSync(executable, "#!/bin/sh\n");
+      fs.chmodSync(executable, 0o755);
+
+      expect(resolveTgrepBinary(undefined, [first, second].join(path.delimiter))).toBe(
+        executable,
+      );
+    } finally {
+      fs.rmSync(first, { recursive: true, force: true });
+      fs.rmSync(second, { recursive: true, force: true });
+    }
+  });
 });
 
 describe("formatTgrepResult", () => {
@@ -262,6 +281,20 @@ describe("formatTgrepResult", () => {
     expect(out).toContain("fileType/glob");
     expect(Buffer.byteLength(out)).toBeLessThan(Buffer.byteLength(big) + 200);
   });
+
+  test("measures truncation in bytes for multibyte output and preserves warnings", () => {
+    const stdout = "€".repeat(Math.ceil((TGREP_OUTPUT_MAX_BYTES + 4) / 3));
+    const omittedBytes = Buffer.byteLength(stdout) - TGREP_OUTPUT_MAX_BYTES;
+    const out = formatTgrepResult({
+      exit: 0,
+      stdout,
+      stderr: "warning: stale index\nignored diagnostic\n",
+    });
+
+    expect(out.startsWith("[tgrep: warning: stale index]\n")).toBe(true);
+    expect(out).toContain(`[truncated ${omittedBytes} bytes: narrow with fileType/glob]`);
+    expect(out).not.toContain("ignored diagnostic");
+  });
 });
 
 describe("runTgrep", () => {
@@ -307,16 +340,19 @@ describe("runTgrep", () => {
 
   test("delegates to the injected executor and formats", async () => {
     const seen: unknown[] = [];
+    const controller = new AbortController();
     const out = await runTgrep(
       "/fake/tgrep",
       ["--", "x", "."],
-      { cwd: "/tmp" },
+      { cwd: "/tmp", signal: controller.signal },
       async (bin, args, opts) => {
-        seen.push([bin, args, opts.cwd]);
+        seen.push([bin, args, opts]);
         return { exit: 0, stdout: "a.ts:2:1:x\n", stderr: "" };
       },
     );
     expect(out).toBe("a.ts:2:1:x");
-    expect(seen).toEqual([["/fake/tgrep", ["--", "x", "."], "/tmp"]]);
+    expect(seen).toEqual([
+      ["/fake/tgrep", ["--", "x", "."], { cwd: "/tmp", signal: controller.signal }],
+    ]);
   });
 });

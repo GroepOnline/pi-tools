@@ -736,6 +736,61 @@ describe("pi-tools tgrep integration", () => {
     }
   });
 
+  test("registers the complete tgrep parameter schema", async () => {
+    process.env.TGREP_BIN = writeFakeBin("tgrep", "exit 1");
+    const setup = await start();
+    try {
+      const tool = setup.pi.registerTool.mock.calls
+        .map(([registered]: [any]) => registered)
+        .find((registered: any) => registered.name === "tgrep");
+      const properties = tool.parameters.properties;
+
+      expect(Object.keys(properties).sort()).toEqual(
+        [
+          "caseSensitive",
+          "context",
+          "count",
+          "filesOnly",
+          "fileType",
+          "glob",
+          "literal",
+          "maxCount",
+          "noIndex",
+          "path",
+          "pattern",
+          "wholeWord",
+        ].sort(),
+      );
+      expect(properties.pattern).toMatchObject({ type: "string" });
+      expect(properties.pattern.optional).toBeUndefined();
+      expect(properties.path).toMatchObject({ type: "string", optional: true });
+      expect(properties.glob).toMatchObject({ type: "union", optional: true });
+      expect(properties.fileType).toMatchObject({ type: "union", optional: true });
+      expect(properties.context.options.description).toContain("0-20");
+    } finally {
+      await shutdown(setup);
+      fs.rmSync(binDir, { recursive: true, force: true });
+    }
+  });
+
+  test("discovers tgrep from PATH when no explicit path is configured", async () => {
+    writeFakeBin("tgrep", "exit 1");
+    const savedPath = process.env.PATH;
+    process.env.PATH = binDir;
+    try {
+      const setup = await start();
+      try {
+        expect(toolNames(setup)).toContain("tgrep");
+      } finally {
+        await shutdown(setup);
+      }
+    } finally {
+      if (savedPath === undefined) delete process.env.PATH;
+      else process.env.PATH = savedPath;
+      fs.rmSync(binDir, { recursive: true, force: true });
+    }
+  });
+
   test("skips tgrep when the binary is missing", async () => {
     process.env.TGREP_BIN = "/nonexistent/tgrep";
     const setup = await start();
@@ -917,6 +972,27 @@ describe("pi-tools tgrep integration", () => {
     }
   });
 
+  test("rejects paths outside the workspace before invoking the binary", async () => {
+    const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "pi-tools-tgrep-cwd-"));
+    const marker = path.join(cwd, "invoked");
+    process.env.TGREP_BIN = writeFakeBin("tgrep", `touch '${marker}'`);
+    const setup = await start(undefined, cwd);
+    try {
+      const tool = setup.pi.registerTool.mock.calls
+        .map(([registered]: [any]) => registered)
+        .find((registered: any) => registered.name === "tgrep");
+
+      await expect(
+        tool.execute("call-1", { pattern: "hello", path: "../outside" }, undefined),
+      ).rejects.toThrow("tgrep path must stay inside the workspace");
+      expect(fs.existsSync(marker)).toBe(false);
+    } finally {
+      await shutdown(setup);
+      fs.rmSync(binDir, { recursive: true, force: true });
+      fs.rmSync(cwd, { recursive: true, force: true });
+    }
+  });
+
   test("/tgrep-status reports the server status", async () => {
     const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "pi-tools-tgrep-cwd-"));
     process.env.TGREP_BIN = writeFakeBin("tgrep", "echo 'Indexing: complete'");
@@ -924,6 +1000,20 @@ describe("pi-tools tgrep integration", () => {
     try {
       await setup.commands.get("tgrep-status").handler("", setup.ctx);
       expect(setup.ctx.ui.notify).toHaveBeenCalledWith("Indexing: complete", "info");
+    } finally {
+      await shutdown(setup);
+      fs.rmSync(binDir, { recursive: true, force: true });
+      fs.rmSync(cwd, { recursive: true, force: true });
+    }
+  });
+
+  test("/tgrep-status passes the active workspace to the binary", async () => {
+    const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "pi-tools-tgrep-cwd-"));
+    process.env.TGREP_BIN = writeFakeBin("tgrep", "printf '%s\\n' \"$@\"");
+    const setup = await start(undefined, cwd);
+    try {
+      await setup.commands.get("tgrep-status").handler("ignored", setup.ctx);
+      expect(setup.ctx.ui.notify).toHaveBeenCalledWith(`status\n${cwd}`, "info");
     } finally {
       await shutdown(setup);
       fs.rmSync(binDir, { recursive: true, force: true });
