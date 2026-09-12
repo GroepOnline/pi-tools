@@ -45,7 +45,7 @@
     "tgrepBinPath": {
       "type": "string",
       "minLength": 1,
-      "description": "Explicit path to the tgrep binary (overrides TGREP_BIN and PATH lookup)."
+      "description": "Explicit path to the tgrep binary; the TGREP_BIN environment variable takes precedence over config.tgrepBinPath, then PATH is used as a fallback."
     }
   }
 }

@@ -113,11 +113,13 @@ async function defaultExec(
     return { exit: 0, stdout, stderr };
   } catch (error: unknown) {
     const execError = error as {
-      code?: number;
+      code?: number | string;
       stdout?: string;
       stderr?: string;
       message?: string;
     };
+    if (execError.code === "ERR_CHILD_PROCESS_STDIO_MAXBUFFER")
+      return { exit: 0, stdout: execError.stdout ?? "", stderr: execError.stderr ?? "" };
     if (typeof execError.code === "number")
       return {
         exit: execError.code,

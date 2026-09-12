@@ -174,6 +174,16 @@ describe("formatTgrepResult", () => {
 });
 
 describe("runTgrep", () => {
+  test("truncates partial stdout after exceeding the child-process buffer", async () => {
+    const out = await runTgrep(
+      process.execPath,
+      ["-e", `process.stdout.write("x".repeat(${TGREP_OUTPUT_MAX_BYTES * 2 + 1}))`],
+      { cwd: "/tmp" },
+    );
+    expect(out).toContain("truncated");
+    expect(out).toContain("fileType/glob");
+  });
+
   test("rejects aborted calls before spawning", async () => {
     const controller = new AbortController();
     controller.abort();
