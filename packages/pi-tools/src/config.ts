@@ -31,6 +31,10 @@ const CONFIG_KEYS = new Set<keyof FffConfig>([
   "tgrepBinPath",
 ]);
 
+/**
+ * Loads and validates pi-tools.json, falling back to the legacy filename.
+ * Returns an empty config when neither file exists and throws for unreadable or invalid files.
+ */
 export function loadConfig(agentDir = piDataDir()): FffConfig {
   let configPath = join(agentDir, CONFIG_FILE_NAME);
   const legacyConfigPath = join(agentDir, LEGACY_CONFIG_FILE_NAME);

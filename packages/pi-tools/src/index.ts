@@ -268,6 +268,10 @@ function createFffMentionProvider(
   };
 }
 
+/**
+ * Registers FFF tools, commands, lifecycle hooks, and autocomplete with Pi.
+ * Also registers tgrep search when it is enabled and its executable is available.
+ */
 export default function fffExtension(pi: ExtensionAPI) {
   let mainFinder: FileFinderApi | null = null;
   let finderCwd: string | null = null;

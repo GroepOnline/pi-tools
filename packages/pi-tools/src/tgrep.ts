@@ -41,8 +41,10 @@ function repeatAll(values: string | string[] | undefined): string[] {
   return Array.isArray(values) ? values : [values];
 }
 
-// Allowlist of index-friendly flags. Full-scan forcers (--hidden, --no-ignore,
-// -u, -a/--text, -E/--encoding) are excluded: they silently bypass the index.
+/**
+ * Builds tgrep arguments for vimgrep output with literal, smart-case matching by default.
+ * Clamps context and per-file limits and separates the pattern and root from options.
+ */
 export function buildTgrepArgs(options: TgrepSearchOptions): string[] {
   const args = ["--vimgrep"];
   args.push(options.caseSensitive ? "--case-sensitive" : "--smart-case");
@@ -62,7 +64,10 @@ export function buildTgrepArgs(options: TgrepSearchOptions): string[] {
   return args;
 }
 
-// Resolve the search root under cwd. Anything escaping the workspace is rejected.
+/**
+ * Resolves a file or directory to a normalized path relative to the workspace.
+ * Throws when the input contains glob syntax or resolves outside the workspace.
+ */
 export function resolveSearchRoot(pathParam: string | undefined, cwd: string): string {
   const raw = (pathParam ?? ".").trim() || ".";
   if (/[*?[{]/.test(raw))
@@ -83,8 +88,10 @@ function isExecutable(file: string): boolean {
   }
 }
 
-// Explicit path wins; a set-but-missing explicit path disables rather than
-// falling back to PATH so a typo surfaces instead of silently changing tools.
+/**
+ * Returns an explicit executable or the first executable named tgrep on the search path.
+ * A nonempty but unusable explicit path returns undefined without searching the path.
+ */
 export function resolveTgrepBinary(explicit?: string, pathEnv = ""): string | undefined {
   const trimmed = explicit?.trim();
   if (trimmed) return isExecutable(trimmed) ? trimmed : undefined;
@@ -130,6 +137,10 @@ async function defaultExec(
   }
 }
 
+/**
+ * Executes tgrep and formats its output for a tool response.
+ * Rejects an already-aborted call; execution and formatting errors propagate.
+ */
 export async function runTgrep(
   bin: string,
   args: string[],
@@ -141,6 +152,10 @@ export async function runTgrep(
   return formatTgrepResult(result);
 }
 
+/**
+ * Executes tgrep and returns its unformatted exit code and output streams.
+ * The optional executor replaces the default child-process invocation.
+ */
 export async function runTgrepRaw(
   bin: string,
   args: string[],
@@ -150,8 +165,10 @@ export async function runTgrepRaw(
   return exec(bin, args, opts);
 }
 
-// Exit 1 is "no match", not a failure. stderr always surfaces: it carries the
-// "no index" warning that decides whether the result reflects current files.
+/**
+ * Formats tgrep output, preserving the first stderr line and truncating oversized results.
+ * Treats exit 1 or empty stdout as no matches and throws for exit 2.
+ */
 export function formatTgrepResult(result: TgrepResult): string {
   const warning = result.stderr.trim().split("\n")[0]?.trim();
   const notice = warning ? `[tgrep: ${warning}]\n` : "";
