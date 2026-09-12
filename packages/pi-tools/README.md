@@ -151,10 +151,11 @@ Create `pi-tools.json` in Pi’s agent directory. The default location is `~/.pi
 | `enableHomeDirScanning` | boolean | `true` | Allows scanning when Pi starts in the home directory. |
 | `enableTgrep` | boolean | `true` | Registers the `tgrep` tool when the binary and a `.tgrep/` index are found. |
 | `tgrepBinPath` | string | PATH lookup | Explicit path to the `tgrep` binary. |
+| `tgrepTimeBudgetMs` | number | `30000` | Child-process time budget in milliseconds. `TGREP_TIME_BUDGET_MS` overrides this. |
 
 Malformed configuration, unknown fields, and invalid values prevent the extension from loading and identify the configuration path in the error. `/fff-mode` changes session state only; it does not edit this file.
 
-The `tgrep` binary resolves as `TGREP_BIN` environment variable, then `tgrepBinPath`, then a `tgrep` executable on `PATH`. An explicit path that is set but not executable disables the tool instead of falling back, so a typo surfaces instead of silently changing the search backend. Binary and `.tgrep/` index are resolved at session start, when the workspace cwd is known.
+The `tgrep` binary resolves as `TGREP_BIN` environment variable, then `tgrepBinPath`, then a `tgrep` executable on `PATH`. An explicit path that is set but not executable disables the tool instead of falling back, so a typo surfaces instead of silently changing the search backend. Binary and `.tgrep/` index are resolved at session start, when the workspace cwd is known. Installing tgrep or building an index mid-session requires `/reload` before the tool appears.
 
 ## Database resolution
 

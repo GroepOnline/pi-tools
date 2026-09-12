@@ -18,6 +18,7 @@ export interface FffConfig {
   enableHomeDirScanning?: boolean;
   enableTgrep?: boolean;
   tgrepBinPath?: string;
+  tgrepTimeBudgetMs?: number;
 }
 
 const CONFIG_KEYS = new Set<keyof FffConfig>([
@@ -29,6 +30,7 @@ const CONFIG_KEYS = new Set<keyof FffConfig>([
   "enableHomeDirScanning",
   "enableTgrep",
   "tgrepBinPath",
+  "tgrepTimeBudgetMs",
 ]);
 
 /**
@@ -87,6 +89,7 @@ export function loadConfig(agentDir = piDataDir()): FffConfig {
   validateBoolean(configPath, parsed, "enableFsRootScanning");
   validateBoolean(configPath, parsed, "enableHomeDirScanning");
   validateBoolean(configPath, parsed, "enableTgrep");
+  validatePositiveInteger(configPath, parsed, "tgrepTimeBudgetMs");
 
   return parsed as FffConfig;
 }
@@ -124,5 +127,17 @@ function validateBoolean(
   const value = config[key];
   if (value !== undefined && typeof value !== "boolean") {
     throw invalidConfig(configPath, `"${key}" must be a boolean`);
+  }
+}
+
+function validatePositiveInteger(
+  configPath: string,
+  config: Record<string, unknown>,
+  key: "tgrepTimeBudgetMs",
+): void {
+  const value = config[key];
+  if (value === undefined) return;
+  if (typeof value !== "number" || !Number.isInteger(value) || value < 1) {
+    throw invalidConfig(configPath, `"${key}" must be a positive integer`);
   }
 }

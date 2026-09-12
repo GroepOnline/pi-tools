@@ -307,7 +307,6 @@ describe("formatTgrepResult", () => {
 
   test("measures truncation in bytes for multibyte output and preserves warnings", () => {
     const stdout = "€".repeat(Math.ceil((TGREP_OUTPUT_MAX_BYTES + 4) / 3));
-    const omittedBytes = Buffer.byteLength(stdout) - TGREP_OUTPUT_MAX_BYTES;
     const out = formatTgrepResult({
       exit: 0,
       stdout,
@@ -315,8 +314,18 @@ describe("formatTgrepResult", () => {
     });
 
     expect(out.startsWith("[tgrep: warning: stale index]\n")).toBe(true);
-    expect(out).toContain(`[truncated ${omittedBytes} bytes: narrow with fileType/glob]`);
+    expect(out).not.toContain("\uFFFD");
     expect(out).not.toContain("ignored diagnostic");
+    const hint = out.match(/\[truncated (\d+) bytes: narrow with fileType\/glob\]/);
+    expect(hint).not.toBeNull();
+    expect(Number(hint![1])).toBeGreaterThanOrEqual(
+      Buffer.byteLength(stdout) - TGREP_OUTPUT_MAX_BYTES,
+    );
+    const printed = out.slice(
+      "[tgrep: warning: stale index]\n".length,
+      out.indexOf("\n… [truncated"),
+    );
+    expect(printed.endsWith("€")).toBe(true);
   });
 });
 
@@ -344,6 +353,32 @@ describe("runTgrep", () => {
       ),
     ).rejects.toThrow("Operation aborted");
     expect(exec).not.toHaveBeenCalled();
+  });
+
+  test("maps a mid-run abort to Operation aborted", async () => {
+    const controller = new AbortController();
+    const running = runTgrep(
+      process.execPath,
+      ["-e", "setTimeout(() => {}, 30000)"],
+      { cwd: "/tmp", signal: controller.signal },
+    );
+    await new Promise((resolve) => setImmediate(resolve));
+    controller.abort();
+    await expect(running).rejects.toThrow("Operation aborted");
+  });
+
+  test("forwards a custom time budget to the executor", async () => {
+    let seen: number | undefined;
+    await runTgrep(
+      "/fake/tgrep",
+      ["--", "x", "."],
+      { cwd: "/tmp", timeoutMs: 12_000 },
+      async (_bin, _args, opts) => {
+        seen = opts.timeoutMs;
+        return { exit: 1, stdout: "", stderr: "" };
+      },
+    );
+    expect(seen).toBe(12_000);
   });
 
   test("maps the real process no-match exit and stderr warning", async () => {

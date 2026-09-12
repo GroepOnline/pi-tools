@@ -70,6 +70,7 @@ Concrete defaults:
 | home scan | `--fff-enable-home-scan` | `FFF_ENABLE_HOME_SCAN` | `config.enableHomeDirScanning` | `true` |
 | tgrep binary | — (no CLI flag by design) | `TGREP_BIN` | `config.tgrepBinPath` | `PATH` lookup |
 | tgrep toggle | — (config file only) | — | `config.enableTgrep` | `true` |
+| tgrep time budget | — (no CLI flag by design) | `TGREP_TIME_BUDGET_MS` | `config.tgrepTimeBudgetMs` | `30000` |
 
 Mode valid values (`packages/pi-tools/src/config.ts:8` `VALID_MODES`):
 `tools-and-ui`, `tools-only`, `override`.

@@ -4,6 +4,7 @@ import path from "node:path";
 import { promisify } from "node:util";
 
 export const TGREP_BIN_ENV = "TGREP_BIN";
+export const TGREP_TIME_BUDGET_ENV = "TGREP_TIME_BUDGET_MS";
 export const TGREP_TOOL_NAME = "tgrep";
 export const TGREP_INDEX_DIR = ".tgrep";
 export const TGREP_TIME_BUDGET_MS = 30_000;
@@ -31,11 +32,13 @@ export interface TgrepResult {
   stderr: string;
 }
 
-type ExecFn = (
-  bin: string,
-  args: string[],
-  opts: { cwd: string; signal?: AbortSignal },
-) => Promise<TgrepResult>;
+export interface TgrepExecOptions {
+  cwd: string;
+  signal?: AbortSignal;
+  timeoutMs?: number;
+}
+
+type ExecFn = (bin: string, args: string[], opts: TgrepExecOptions) => Promise<TgrepResult>;
 
 /** Normalizes an optional scalar or list into an iterable array. */
 function repeatAll(values: string | string[] | undefined): string[] {
@@ -121,17 +124,19 @@ const execFileAsync = promisify(execFile);
 async function defaultExec(
   bin: string,
   args: string[],
-  opts: { cwd: string; signal?: AbortSignal },
+  opts: TgrepExecOptions,
 ): Promise<TgrepResult> {
   try {
     const { stdout, stderr } = await execFileAsync(bin, args, {
       cwd: opts.cwd,
       signal: opts.signal,
-      timeout: TGREP_TIME_BUDGET_MS,
+      timeout: opts.timeoutMs ?? TGREP_TIME_BUDGET_MS,
       maxBuffer: TGREP_OUTPUT_MAX_BYTES * 2,
     });
     return { exit: 0, stdout, stderr };
   } catch (error: unknown) {
+    if (isAbortError(error) || opts.signal?.aborted)
+      throw new Error("Operation aborted");
     const execError = error as {
       code?: number | string;
       stdout?: string;
@@ -157,7 +162,7 @@ async function defaultExec(
 export async function runTgrep(
   bin: string,
   args: string[],
-  opts: { cwd: string; signal?: AbortSignal },
+  opts: TgrepExecOptions,
   exec: ExecFn = defaultExec,
 ): Promise<string> {
   if (opts.signal?.aborted) throw new Error("Operation aborted");
@@ -172,7 +177,7 @@ export async function runTgrep(
 export async function runTgrepRaw(
   bin: string,
   args: string[],
-  opts: { cwd: string; signal?: AbortSignal },
+  opts: TgrepExecOptions,
   exec: ExecFn = defaultExec,
 ): Promise<TgrepResult> {
   return exec(bin, args, opts);
@@ -192,16 +197,23 @@ export function formatTgrepResult(result: TgrepResult): string {
   return `${notice}${body}`;
 }
 
-/** Truncates oversized output and appends a hint for narrowing the search. */
+/** Truncates oversized output on a UTF-8 character boundary. */
 function truncateBytes(text: string): string {
   const buf = Buffer.from(text);
   if (buf.length <= TGREP_OUTPUT_MAX_BYTES) return text;
-  const head = buf.subarray(0, TGREP_OUTPUT_MAX_BYTES).toString();
-  return `${head}\n… [truncated ${buf.length - TGREP_OUTPUT_MAX_BYTES} bytes: narrow with fileType/glob]`;
+  let end = TGREP_OUTPUT_MAX_BYTES;
+  while (end > 0 && (buf[end] & 0xc0) === 0x80) end--;
+  const head = buf.subarray(0, end).toString();
+  return `${head}\n… [truncated ${buf.length - end} bytes: narrow with fileType/glob]`;
 }
 
 /** Normalizes context to the supported non-negative integer range. */
 function clampContext(context: number | undefined): number {
   if (!context || context < 0) return 0;
   return Math.min(Math.floor(context), TGREP_CONTEXT_MAX);
+}
+
+function isAbortError(error: unknown): boolean {
+  if (error instanceof Error && error.name === "AbortError") return true;
+  return (error as { code?: unknown }).code === "ABORT_ERR";
 }

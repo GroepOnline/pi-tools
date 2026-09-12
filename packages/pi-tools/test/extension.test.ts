@@ -188,6 +188,7 @@ const CONFIG_ENV_KEYS = [
   "FFF_ENABLE_ROOT_SCAN",
   "FFF_ENABLE_HOME_SCAN",
   "TGREP_BIN",
+  "TGREP_TIME_BUDGET_MS",
 ] as const;
 
 const savedEnv: Record<string, string | undefined> = {};

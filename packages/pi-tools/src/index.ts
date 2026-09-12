@@ -31,6 +31,8 @@ import {
   runTgrep,
   TGREP_BIN_ENV,
   TGREP_CONTEXT_MAX,
+  TGREP_TIME_BUDGET_ENV,
+  TGREP_TIME_BUDGET_MS,
   TGREP_TOOL_NAME,
 } from "./tgrep";
 
@@ -283,6 +285,7 @@ export default function fffExtension(pi: ExtensionAPI) {
   const config = loadConfig();
   // Resolved at session start so cwd (index) and flags are known.
   let tgrepBin: string | undefined;
+  let tgrepTimeBudgetMs = TGREP_TIME_BUDGET_MS;
 
   function resolveTgrepBin(): string | undefined {
     if (config.enableTgrep === false) return undefined;
@@ -326,6 +329,15 @@ export default function fffExtension(pi: ExtensionAPI) {
     return typeof value === "string" && VALID_MODES.includes(value as FffMode)
       ? (value as FffMode)
       : undefined;
+  }
+
+  function parsePositiveInt(value: unknown): number | undefined {
+    if (typeof value === "number" && Number.isInteger(value) && value >= 1) return value;
+    if (typeof value === "string" && value.trim() !== "") {
+      const parsed = Number(value);
+      if (Number.isInteger(parsed) && parsed >= 1) return parsed;
+    }
+    return undefined;
   }
 
   let currentMode: FffMode = "tools-and-ui";
@@ -373,6 +385,13 @@ export default function fffExtension(pi: ExtensionAPI) {
       config.enableHomeDirScanning,
       true,
       parseBoolean,
+    );
+    tgrepTimeBudgetMs = getConfigValue(
+      "tgrep-time-budget-ms",
+      TGREP_TIME_BUDGET_ENV,
+      config.tgrepTimeBudgetMs,
+      TGREP_TIME_BUDGET_MS,
+      parsePositiveInt,
     );
   }
 
@@ -707,7 +726,7 @@ export default function fffExtension(pi: ExtensionAPI) {
             maxCount: params.maxCount,
             noIndex: params.noIndex,
           }),
-          { cwd: activeCwd, signal },
+          { cwd: activeCwd, signal, timeoutMs: tgrepTimeBudgetMs },
         );
         return { content: [{ type: "text", text: output }], details: {} };
       },
@@ -1420,6 +1439,7 @@ export default function fffExtension(pi: ExtensionAPI) {
       try {
         const output = await runTgrep(bin, ["status", activeCwd], {
           cwd: activeCwd,
+          timeoutMs: tgrepTimeBudgetMs,
         });
         ctx.ui.notify(output || "tgrep status: no output", "info");
       } catch (error: unknown) {
