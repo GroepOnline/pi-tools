@@ -103,6 +103,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+/** Validates that an optional configuration value is a non-empty string. */
 function validateString(
   configPath: string,
   config: Record<string, unknown>,
@@ -114,6 +115,7 @@ function validateString(
   }
 }
 
+/** Validates that an optional configuration value is boolean. */
 function validateBoolean(
   configPath: string,
   config: Record<string, unknown>,

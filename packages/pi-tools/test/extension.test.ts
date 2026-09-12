@@ -710,6 +710,7 @@ describe("pi-tools autocomplete registration", () => {
 describe("pi-tools tgrep integration", () => {
   let binDir = "";
 
+  /** Creates an executable shell stub for tgrep integration tests. */
   function writeFakeBin(name: string, body: string): string {
     binDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-tools-tgrep-"));
     const bin = path.join(binDir, name);
@@ -718,6 +719,7 @@ describe("pi-tools tgrep integration", () => {
     return bin;
   }
 
+  /** Returns the tool names registered through the mocked Pi API. */
   function toolNames(setup: { pi: { registerTool: any } }): string[] {
     return setup.pi.registerTool.mock.calls.map(([tool]: [any]) => tool.name);
   }

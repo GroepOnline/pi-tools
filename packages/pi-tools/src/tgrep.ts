@@ -36,6 +36,7 @@ type ExecFn = (
   opts: { cwd: string; signal?: AbortSignal },
 ) => Promise<TgrepResult>;
 
+/** Normalizes an optional scalar or list into an iterable array. */
 function repeatAll(values: string | string[] | undefined): string[] {
   if (!values) return [];
   return Array.isArray(values) ? values : [values];
@@ -79,6 +80,7 @@ export function resolveSearchRoot(pathParam: string | undefined, cwd: string): s
   return relative === "" ? "." : relative.split(path.sep).join("/");
 }
 
+/** Checks whether a path points to an executable regular file. */
 function isExecutable(file: string): boolean {
   try {
     fs.accessSync(file, fs.constants.X_OK);
@@ -105,6 +107,7 @@ export function resolveTgrepBinary(explicit?: string, pathEnv = ""): string | un
 
 const execFileAsync = promisify(execFile);
 
+/** Runs tgrep with bounded time and output, preserving output from normal process exits. */
 async function defaultExec(
   bin: string,
   args: string[],
@@ -179,6 +182,7 @@ export function formatTgrepResult(result: TgrepResult): string {
   return `${notice}${body}`;
 }
 
+/** Truncates oversized output and appends a hint for narrowing the search. */
 function truncateBytes(text: string): string {
   const buf = Buffer.from(text);
   if (buf.length <= TGREP_OUTPUT_MAX_BYTES) return text;
@@ -186,6 +190,7 @@ function truncateBytes(text: string): string {
   return `${head}\n… [truncated ${buf.length - TGREP_OUTPUT_MAX_BYTES} bytes: narrow with fileType/glob]`;
 }
 
+/** Normalizes context to the supported non-negative integer range. */
 function clampContext(context: number | undefined): number {
   if (!context || context < 0) return 0;
   return Math.min(Math.floor(context), TGREP_CONTEXT_MAX);

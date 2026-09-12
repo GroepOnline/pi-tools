@@ -1259,6 +1259,7 @@ export default function fffExtension(pi: ExtensionAPI) {
       ],
       parameters: tgrepSchema,
 
+      /** Executes tgrep with validated workspace-relative arguments. */
       async execute(_toolCallId, params, signal) {
         if (signal?.aborted) throw new Error("Operation aborted");
         const root = resolveSearchRoot(params.path, activeCwd);
