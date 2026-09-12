@@ -381,6 +381,15 @@ describe("runTgrep", () => {
     await expect(running).rejects.toThrow("Operation aborted");
   });
 
+  test("maps a time-budget timeout to a narrowing hint", async () => {
+    await expect(
+      runTgrep(process.execPath, ["-e", "setTimeout(() => {}, 30000)"], {
+        cwd: "/tmp",
+        timeoutMs: 100,
+      }),
+    ).rejects.toThrow("timed out after 100ms");
+  });
+
   test("forwards a custom time budget to the executor", async () => {
     let seen: number | undefined;
     await runTgrep(

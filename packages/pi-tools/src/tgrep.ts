@@ -143,7 +143,17 @@ async function defaultExec(
       stdout?: string;
       stderr?: string;
       message?: string;
+      killed?: boolean;
     };
+    // execFile reports a budget timeout as killed:true with code null, so it
+    // would otherwise fall through to the generic failure below. User aborts
+    // are already handled above; a kill here means the time budget ran out.
+    if (execError.killed) {
+      const budget = opts.timeoutMs ?? TGREP_TIME_BUDGET_MS;
+      throw new Error(
+        `tgrep timed out after ${budget}ms; narrow with fileType/glob or raise tgrepTimeBudgetMs`,
+      );
+    }
     if (execError.code === "ERR_CHILD_PROCESS_STDIO_MAXBUFFER")
       return { exit: 0, stdout: execError.stdout ?? "", stderr: execError.stderr ?? "" };
     if (typeof execError.code === "number")
