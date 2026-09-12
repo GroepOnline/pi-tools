@@ -683,12 +683,6 @@ export default function fffExtension(pi: ExtensionAPI) {
         }),
       ),
       maxCount: Type.Optional(Type.Number({ description: "Limit matches per file." })),
-      noIndex: Type.Optional(
-        Type.Boolean({
-          description:
-            "Read files from disk instead of the index. Use after your own edits when the latest content must be visible.",
-        }),
-      ),
     });
 
     queueTool(() => TGREP_TOOL_NAME, {
@@ -701,7 +695,7 @@ export default function fffExtension(pi: ExtensionAPI) {
         `${TGREP_TOOL_NAME}: keep literal: true (default) for symbols; set false for regex.`,
         `${TGREP_TOOL_NAME}: narrow with fileType/glob before raising maxCount.`,
         `${TGREP_TOOL_NAME}: use filesOnly: true first on broad queries, then search specific files.`,
-        `${TGREP_TOOL_NAME}: after your own edits, pass noIndex: true or use ${names.grep}; the index lags watcher events.`,
+        `${TGREP_TOOL_NAME}: after your own edits, use ${names.grep}; the index lags watcher events.`,
         `${TGREP_TOOL_NAME}: a '[tgrep: ...]' line reports index freshness, never drop it from summaries.`,
       ],
       parameters: tgrepSchema,
@@ -724,7 +718,6 @@ export default function fffExtension(pi: ExtensionAPI) {
             count: params.count,
             context: params.context,
             maxCount: params.maxCount,
-            noIndex: params.noIndex,
           }),
           { cwd: activeCwd, signal, timeoutMs: tgrepTimeBudgetMs },
         );

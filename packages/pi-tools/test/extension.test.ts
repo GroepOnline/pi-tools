@@ -765,7 +765,6 @@ describe("pi-tools tgrep integration", () => {
           "glob",
           "literal",
           "maxCount",
-          "noIndex",
           "path",
           "pattern",
           "wholeWord",
@@ -966,7 +965,6 @@ describe("pi-tools tgrep integration", () => {
           count: true,
           context: 2,
           maxCount: 5,
-          noIndex: true,
         },
         new AbortController().signal,
       );
@@ -990,7 +988,6 @@ describe("pi-tools tgrep integration", () => {
         "2",
         "--max-count",
         "5",
-        "--no-index",
         "--",
         "fn main",
         "test",

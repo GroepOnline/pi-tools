@@ -23,7 +23,6 @@ export interface TgrepSearchOptions {
   count?: boolean;
   context?: number;
   maxCount?: number;
-  noIndex?: boolean;
 }
 
 export interface TgrepResult {
@@ -38,7 +37,11 @@ export interface TgrepExecOptions {
   timeoutMs?: number;
 }
 
-type ExecFn = (bin: string, args: string[], opts: TgrepExecOptions) => Promise<TgrepResult>;
+type ExecFn = (
+  bin: string,
+  args: string[],
+  opts: TgrepExecOptions,
+) => Promise<TgrepResult>;
 
 /** Normalizes an optional scalar or list into an iterable array. */
 function repeatAll(values: string | string[] | undefined): string[] {
@@ -63,7 +66,6 @@ export function buildTgrepArgs(options: TgrepSearchOptions): string[] {
   if (context > 0) args.push("-A", String(context), "-B", String(context));
   if (options.maxCount !== undefined)
     args.push("--max-count", String(Math.max(1, Math.floor(options.maxCount))));
-  if (options.noIndex) args.push("--no-index");
   // Separator keeps patterns like "serve" or "-x" from parsing as subcommands.
   args.push("--", options.pattern, options.root);
   return args;
@@ -135,8 +137,7 @@ async function defaultExec(
     });
     return { exit: 0, stdout, stderr };
   } catch (error: unknown) {
-    if (isAbortError(error) || opts.signal?.aborted)
-      throw new Error("Operation aborted");
+    if (isAbortError(error) || opts.signal?.aborted) throw new Error("Operation aborted");
     const execError = error as {
       code?: number | string;
       stdout?: string;

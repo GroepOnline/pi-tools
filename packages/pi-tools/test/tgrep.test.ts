@@ -43,7 +43,6 @@ describe("buildTgrepArgs", () => {
         fileType: ["rust", "py"],
         glob: "src/**",
         filesOnly: true,
-        noIndex: true,
       }),
     ).toEqual([
       "--vimgrep",
@@ -56,7 +55,6 @@ describe("buildTgrepArgs", () => {
       "--glob",
       "src/**",
       "--files-with-matches",
-      "--no-index",
       "--",
       "fn main",
       ".",
@@ -112,7 +110,14 @@ describe("buildTgrepArgs", () => {
 
   test("never emits full-scan forcing flags", () => {
     const args = buildTgrepArgs({ pattern: "x", root: "." }).join(" ");
-    for (const banned of ["--hidden", "--no-ignore", "--text", "--encoding", "-u"]) {
+    for (const banned of [
+      "--hidden",
+      "--no-ignore",
+      "--text",
+      "--encoding",
+      "-u",
+      "--no-index",
+    ]) {
       expect(args.includes(banned)).toBe(false);
     }
   });
@@ -357,11 +362,10 @@ describe("runTgrep", () => {
 
   test("maps a mid-run abort to Operation aborted", async () => {
     const controller = new AbortController();
-    const running = runTgrep(
-      process.execPath,
-      ["-e", "setTimeout(() => {}, 30000)"],
-      { cwd: "/tmp", signal: controller.signal },
-    );
+    const running = runTgrep(process.execPath, ["-e", "setTimeout(() => {}, 30000)"], {
+      cwd: "/tmp",
+      signal: controller.signal,
+    });
     await new Promise((resolve) => setImmediate(resolve));
     controller.abort();
     await expect(running).rejects.toThrow("Operation aborted");

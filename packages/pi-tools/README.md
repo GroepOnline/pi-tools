@@ -101,9 +101,8 @@ Use a concrete substring, identifier, or expression. A wildcard-only expression 
 | `count` | boolean, optional | Prints the match count per file. |
 | `context` | number, optional | Context lines before and after a match; range 0–20. |
 | `maxCount` | number, optional | Limits matches per file. |
-| `noIndex` | boolean, optional | Reads files from disk instead of the index. Use after your own edits when the latest content must be visible. |
 
-Output is `file:line:col:text` rows. Exit code 1 (no match) is reported as `No matches found`, not as a failure. A leading `[tgrep: ...]` line carries the binary's stderr freshness warning. Only index-safe flags are forwarded; full-scan forcers (`--hidden`, `--no-ignore`, `-u`, `-a`, `--encoding`) are excluded by design. The tool is not registered without a workspace `.tgrep/` directory, so a no-index full scan is not offered as a search tool.
+Output is `file:line:col:text` rows. Exit code 1 (no match) is reported as `No matches found`, not as a failure. A leading `[tgrep: ...]` line carries the binary's stderr freshness warning. Only index-safe flags are forwarded; full-scan forcers (`--hidden`, `--no-ignore`, `-u`, `-a`, `--encoding`, `--no-index`) are excluded by design. After your own edits, use `ffgrep` because the index lags watcher events.
 
 ### Optional multi-pattern search
 
