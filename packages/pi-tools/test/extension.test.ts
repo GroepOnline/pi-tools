@@ -757,6 +757,44 @@ describe("pi-tools tgrep integration", () => {
     }
   });
 
+  test("registers tgrep from the configured binary path", async () => {
+    const bin = writeFakeBin("configured-tgrep", "exit 1");
+    writeConfig({ tgrepBinPath: bin });
+    const setup = await start();
+    try {
+      expect(toolNames(setup)).toContain("tgrep");
+    } finally {
+      await shutdown(setup);
+      fs.rmSync(binDir, { recursive: true, force: true });
+    }
+  });
+
+  test("does not fall back to config when TGREP_BIN is explicitly missing", async () => {
+    const bin = writeFakeBin("configured-tgrep", "exit 1");
+    writeConfig({ tgrepBinPath: bin });
+    process.env.TGREP_BIN = path.join(binDir, "missing");
+    const setup = await start();
+    try {
+      expect(toolNames(setup)).not.toContain("tgrep");
+    } finally {
+      await shutdown(setup);
+      fs.rmSync(binDir, { recursive: true, force: true });
+    }
+  });
+
+  test("registers tgrep independently of the FFF mode", async () => {
+    process.env.TGREP_BIN = writeFakeBin("tgrep", "exit 1");
+    try {
+      for (const mode of ["tools-only", "override"]) {
+        const setup = await start(mode);
+        expect(toolNames(setup)).toContain("tgrep");
+        await shutdown(setup);
+      }
+    } finally {
+      fs.rmSync(binDir, { recursive: true, force: true });
+    }
+  });
+
   test("executes searches through the binary and reports no-match", async () => {
     const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "pi-tools-tgrep-cwd-"));
     process.env.TGREP_BIN = writeFakeBin("tgrep", "exit 1");
@@ -796,6 +834,87 @@ describe("pi-tools tgrep integration", () => {
     }
   });
 
+  test("forwards every search option with a normalized workspace path", async () => {
+    const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "pi-tools-tgrep-cwd-"));
+    process.env.TGREP_BIN = writeFakeBin("tgrep", "printf '%s\\n' \"$@\"");
+    const setup = await start(undefined, cwd);
+    try {
+      const tool = setup.pi.registerTool.mock.calls
+        .map(([t]: [any]) => t)
+        .find((t: any) => t.name === "tgrep");
+      const result = await tool.execute(
+        "call-1",
+        {
+          pattern: "fn main",
+          path: "./src/../test",
+          glob: ["*.ts", "!*.test.ts"],
+          fileType: ["js", "ts"],
+          literal: false,
+          caseSensitive: true,
+          wholeWord: true,
+          filesOnly: true,
+          count: true,
+          context: 2,
+          maxCount: 5,
+          noIndex: true,
+        },
+        new AbortController().signal,
+      );
+      expect(result.content[0].text.split("\n")).toEqual([
+        "--vimgrep",
+        "--case-sensitive",
+        "--word-regexp",
+        "--type",
+        "js",
+        "--type",
+        "ts",
+        "--glob",
+        "*.ts",
+        "--glob",
+        "!*.test.ts",
+        "--files-with-matches",
+        "--count",
+        "-A",
+        "2",
+        "-B",
+        "2",
+        "--max-count",
+        "5",
+        "--no-index",
+        "--",
+        "fn main",
+        "test",
+      ]);
+    } finally {
+      await shutdown(setup);
+      fs.rmSync(binDir, { recursive: true, force: true });
+      fs.rmSync(cwd, { recursive: true, force: true });
+    }
+  });
+
+  test("rejects an already-aborted search without invoking the binary", async () => {
+    const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "pi-tools-tgrep-cwd-"));
+    const marker = path.join(cwd, "invoked");
+    process.env.TGREP_BIN = writeFakeBin("tgrep", `touch '${marker}'`);
+    const setup = await start(undefined, cwd);
+    try {
+      const tool = setup.pi.registerTool.mock.calls
+        .map(([t]: [any]) => t)
+        .find((t: any) => t.name === "tgrep");
+      const controller = new AbortController();
+      controller.abort();
+
+      await expect(
+        tool.execute("call-1", { pattern: "hello" }, controller.signal),
+      ).rejects.toThrow("Operation aborted");
+      expect(fs.existsSync(marker)).toBe(false);
+    } finally {
+      await shutdown(setup);
+      fs.rmSync(binDir, { recursive: true, force: true });
+      fs.rmSync(cwd, { recursive: true, force: true });
+    }
+  });
+
   test("/tgrep-status reports the server status", async () => {
     const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "pi-tools-tgrep-cwd-"));
     process.env.TGREP_BIN = writeFakeBin("tgrep", "echo 'Indexing: complete'");
@@ -821,6 +940,26 @@ describe("pi-tools tgrep integration", () => {
       );
     } finally {
       await shutdown(setup);
+    }
+  });
+
+  test("/tgrep-status reports binary failures", async () => {
+    const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "pi-tools-tgrep-cwd-"));
+    process.env.TGREP_BIN = writeFakeBin(
+      "tgrep",
+      "echo 'invalid index metadata' >&2; exit 2",
+    );
+    const setup = await start(undefined, cwd);
+    try {
+      await setup.commands.get("tgrep-status").handler("", setup.ctx);
+      expect(setup.ctx.ui.notify).toHaveBeenCalledWith(
+        "tgrep status failed: tgrep search failed: invalid index metadata",
+        "error",
+      );
+    } finally {
+      await shutdown(setup);
+      fs.rmSync(binDir, { recursive: true, force: true });
+      fs.rmSync(cwd, { recursive: true, force: true });
     }
   });
 });

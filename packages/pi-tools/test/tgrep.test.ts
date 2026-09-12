@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, mock, test } from "bun:test";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -61,6 +61,15 @@ describe("buildTgrepArgs", () => {
     ]);
   });
 
+  test("repeats glob filters in the supplied order", () => {
+    const args = buildTgrepArgs({
+      pattern: "x",
+      root: ".",
+      glob: ["*.ts", "!*.test.ts"],
+    });
+    expect(args.slice(3, -3)).toEqual(["--glob", "*.ts", "--glob", "!*.test.ts"]);
+  });
+
   test("emits count and per-file cap", () => {
     const args = buildTgrepArgs({ pattern: "x", root: ".", count: true, maxCount: 0 });
     expect(args).toContain("--count");
@@ -77,6 +86,26 @@ describe("buildTgrepArgs", () => {
     expect(args).toContain("-A");
     expect(args).toContain("-B");
     expect(args[args.indexOf("-A") + 1]).toBe(String(TGREP_CONTEXT_MAX));
+  });
+
+  test("floors fractional limits and omits non-positive context", () => {
+    const fractional = buildTgrepArgs({
+      pattern: "x",
+      root: ".",
+      context: 3.9,
+      maxCount: 4.9,
+    });
+    expect(fractional.slice(fractional.indexOf("-A"), fractional.indexOf("-B"))).toEqual([
+      "-A",
+      "3",
+    ]);
+    expect(fractional[fractional.indexOf("--max-count") + 1]).toBe("4");
+
+    for (const context of [0, -1, Number.NaN]) {
+      const args = buildTgrepArgs({ pattern: "x", root: ".", context });
+      expect(args).not.toContain("-A");
+      expect(args).not.toContain("-B");
+    }
   });
 
   test("never emits full-scan forcing flags", () => {
@@ -99,10 +128,20 @@ describe("resolveSearchRoot", () => {
     expect(resolveSearchRoot("src/main.ts", cwd)).toBe("src/main.ts");
   });
 
+  test("trims and normalizes workspace-relative paths", () => {
+    expect(resolveSearchRoot("   ", cwd)).toBe(".");
+    expect(resolveSearchRoot(" ./src/../test/tgrep.test.ts ", cwd)).toBe(
+      "test/tgrep.test.ts",
+    );
+  });
+
   test("rejects globs and escapes", () => {
     expect(() => resolveSearchRoot("src/**/*.ts", cwd)).toThrow("not a glob");
     expect(() => resolveSearchRoot("../outside", cwd)).toThrow("inside the workspace");
     expect(() => resolveSearchRoot("/etc/passwd", cwd)).toThrow("inside the workspace");
+    expect(() => resolveSearchRoot(`${cwd}-sibling`, cwd)).toThrow(
+      "inside the workspace",
+    );
   });
 });
 
@@ -131,6 +170,37 @@ describe("resolveTgrepBinary", () => {
       expect(resolveTgrepBinary(undefined, "")).toBeUndefined();
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("does not fall back to PATH when an explicit binary is missing", () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tgrep-precedence-"));
+    try {
+      const pathBin = path.join(dir, "tgrep");
+      fs.writeFileSync(pathBin, "#!/bin/sh\n");
+      fs.chmodSync(pathBin, 0o755);
+
+      expect(resolveTgrepBinary(path.join(dir, "missing"), dir)).toBeUndefined();
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("skips non-executable PATH entries and continues searching", () => {
+    const first = fs.mkdtempSync(path.join(os.tmpdir(), "tgrep-path-first-"));
+    const second = fs.mkdtempSync(path.join(os.tmpdir(), "tgrep-path-second-"));
+    try {
+      fs.writeFileSync(path.join(first, "tgrep"), "#!/bin/sh\n");
+      const executable = path.join(second, "tgrep");
+      fs.writeFileSync(executable, "#!/bin/sh\n");
+      fs.chmodSync(executable, 0o755);
+
+      expect(resolveTgrepBinary(undefined, [first, second].join(path.delimiter))).toBe(
+        executable,
+      );
+    } finally {
+      fs.rmSync(first, { recursive: true, force: true });
+      fs.rmSync(second, { recursive: true, force: true });
     }
   });
 });
@@ -164,6 +234,27 @@ describe("formatTgrepResult", () => {
     expect(out).toContain("a.ts:1:5:foo");
   });
 
+  test("keeps the first stderr warning when there are no matches", () => {
+    expect(
+      formatTgrepResult({
+        exit: 1,
+        stdout: "",
+        stderr: "warning: stale index\nadditional diagnostic\n",
+      }),
+    ).toBe("[tgrep: warning: stale index]\nNo matches found");
+  });
+
+  test("uses a stable fallback when an exit 2 error has no stderr", () => {
+    expect(() => formatTgrepResult({ exit: 2, stdout: "", stderr: "" })).toThrow(
+      "tgrep search failed: unknown error",
+    );
+  });
+
+  test("does not truncate output at the exact byte limit", () => {
+    const exact = "x".repeat(TGREP_OUTPUT_MAX_BYTES);
+    expect(formatTgrepResult({ exit: 0, stdout: exact, stderr: "" })).toBe(exact);
+  });
+
   test("truncates oversized output with a narrowing hint", () => {
     const big = `${"x".repeat(TGREP_OUTPUT_MAX_BYTES + 10)}\n`;
     const out = formatTgrepResult({ exit: 0, stdout: big, stderr: "" });
@@ -187,14 +278,31 @@ describe("runTgrep", () => {
   test("rejects aborted calls before spawning", async () => {
     const controller = new AbortController();
     controller.abort();
+    const exec = mock(async () => ({ exit: 0, stdout: "", stderr: "" }));
     await expect(
       runTgrep(
         "/bin/false",
         ["--", "x", "."],
         { cwd: "/tmp", signal: controller.signal },
-        async () => ({ exit: 0, stdout: "", stderr: "" }),
+        exec,
       ),
     ).rejects.toThrow("Operation aborted");
+    expect(exec).not.toHaveBeenCalled();
+  });
+
+  test("maps the real process no-match exit and stderr warning", async () => {
+    const out = await runTgrep(
+      process.execPath,
+      ["-e", 'process.stderr.write("warning: stale index\\n"); process.exit(1)'],
+      { cwd: "/tmp" },
+    );
+    expect(out).toBe("[tgrep: warning: stale index]\nNo matches found");
+  });
+
+  test("wraps child-process launch failures with tgrep context", async () => {
+    await expect(
+      runTgrep("/definitely/missing/tgrep", ["--", "x", "."], { cwd: "/tmp" }),
+    ).rejects.toThrow("tgrep failed to run:");
   });
 
   test("delegates to the injected executor and formats", async () => {
