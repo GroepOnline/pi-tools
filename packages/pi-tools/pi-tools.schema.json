@@ -40,7 +40,7 @@
     "enableTgrep": {
       "type": "boolean",
       "default": true,
-      "description": "Registers the tgrep trigram-index search tool when the tgrep binary is found."
+      "description": "Registers the tgrep trigram-index search tool when the tgrep binary is found and the workspace has a .tgrep index."
     },
     "tgrepBinPath": {
       "type": "string",

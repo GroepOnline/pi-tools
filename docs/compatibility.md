@@ -15,9 +15,9 @@ The extension registers two FFF tools, an optional `tgrep` tool, and one complet
 |---|---|
 | `fffind` | Typo-resistant file discovery + frecency-ranked access |
 | `ffgrep` | SIMD content search |
-| `tgrep` | Trigram-indexed content search via an external binary (registered only when found) |
+| `tgrep` | Trigram-indexed exact content search via an external binary (registered when the binary and a workspace `.tgrep/` index are found) |
 
-Source of truth: `packages/pi-tools/src/index.ts:60` (`FFF_TOOL_NAMES`: `grep: "ffgrep", find: "fffind"`), `tgrep` via `queueTool(() => TGREP_TOOL_NAME, …)` gated on `resolveTgrepBinary` (`src/tgrep.ts`),
+Source of truth: `packages/pi-tools/src/index.ts:60` (`FFF_TOOL_NAMES`: `grep: "ffgrep", find: "fffind"`), `tgrep` via `queueTgrepTool` / `queueTool(() => TGREP_TOOL_NAME, …)` gated on `resolveTgrepBinary` plus `hasTgrepIndex` (`src/tgrep.ts`) at session start,
 registered via `queueTool(() => toolNames.grep, …)` / `queueTool(() => toolNames.find, …)`.
 
 ### Parameters
@@ -41,16 +41,16 @@ tool parameters. Compatibility surface = the parameter **names**, **types**, **e
   A tool disappearing when mode changes is expected; a mode value being removed is breaking.
 - **Exit codes (`tgrep`):** exit `0` returns `file:line:col:text` rows, exit `1` reports
   `No matches found` (not a failure), exit `2` throws with the stderr cause. A leading
-  `[tgrep: ...]` line always carries the binary's stderr, including the "no index"
-  freshness warning. Output truncates at `TGREP_OUTPUT_MAX_BYTES` with a narrowing hint.
-  `tgrep` is mode-independent: it keeps its name in every mode and is gated only on
-  binary availability plus `enableTgrep`.
+  `[tgrep: ...]` line always carries the binary's stderr freshness warning. Output
+  truncates at `TGREP_OUTPUT_MAX_BYTES` with a narrowing hint.
+  `tgrep` is mode-independent: it keeps its name in every mode and is gated on
+  binary availability, a workspace `.tgrep/` directory, and `enableTgrep`.
 
 ### Config precedence
 
 Config values are resolved in this priority order
-(`packages/pi-tools/src/index.ts:291` `getConfigValue`, read at startup
-`resolveStartupConfig`; `tgrep` resolves once at extension load):
+(`packages/pi-tools/src/index.ts` `getConfigValue`, read at startup
+`resolveStartupConfig`; `tgrep` binary and index are resolved at session start):
 
 ```
 flag (--fff-mode / --fff-frecency-db / --fff-history-db / …)

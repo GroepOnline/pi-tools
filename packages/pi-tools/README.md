@@ -86,7 +86,7 @@ Use a concrete substring, identifier, or expression. A wildcard-only expression 
 
 ### `tgrep`
 
-`tgrep` searches file content through an external [tgrep](https://github.com/microsoft/tgrep) binary: trigram-indexed search with a client/server architecture, fastest on large repositories with a built index. The tool is registered only when the binary is found and `enableTgrep` is not disabled; it keeps the name `tgrep` in every mode. Prefer `ffgrep` for fuzzy, frecency-ranked search on small and medium repositories.
+`tgrep` searches file content through an external [tgrep](https://github.com/microsoft/tgrep) binary: trigram-indexed exact search with a client/server architecture. The tool is registered only when the binary is found, the session cwd has a `.tgrep/` index, and `enableTgrep` is not disabled; it keeps the name `tgrep` in every mode. Prefer `tgrep` for exact literals and symbols; prefer `ffgrep` for fuzzy, typo-tolerant, frecency-ranked search. After `tgrep index .` or `tgrep serve .`, reload the session to expose the tool.
 
 | Parameter | Type | Description |
 | --- | --- | --- |
@@ -103,7 +103,7 @@ Use a concrete substring, identifier, or expression. A wildcard-only expression 
 | `maxCount` | number, optional | Limits matches per file. |
 | `noIndex` | boolean, optional | Reads files from disk instead of the index. Use after your own edits when the latest content must be visible. |
 
-Output is `file:line:col:text` rows. Exit code 1 (no match) is reported as `No matches found`, not as a failure. A leading `[tgrep: ...]` line carries the binary's stderr, including the "no index" warning: without an index (`tgrep index .` or `tgrep serve .`) the search scans every file like grep and may be slow. Only index-safe flags are forwarded; full-scan forcers (`--hidden`, `--no-ignore`, `-u`, `-a`, `--encoding`) are excluded by design.
+Output is `file:line:col:text` rows. Exit code 1 (no match) is reported as `No matches found`, not as a failure. A leading `[tgrep: ...]` line carries the binary's stderr freshness warning. Only index-safe flags are forwarded; full-scan forcers (`--hidden`, `--no-ignore`, `-u`, `-a`, `--encoding`) are excluded by design. The tool is not registered without a workspace `.tgrep/` directory, so a no-index full scan is not offered as a search tool.
 
 ### Optional multi-pattern search
 
@@ -149,12 +149,12 @@ Create `pi-tools.json` in Pi’s agent directory. The default location is `~/.pi
 | `historyDbPath` | string | Auto-resolved | Location for query-selection history. |
 | `enableFsRootScanning` | boolean | `false` | Explicitly allows scans started from `/`. |
 | `enableHomeDirScanning` | boolean | `true` | Allows scanning when Pi starts in the home directory. |
-| `enableTgrep` | boolean | `true` | Registers the `tgrep` tool when the binary is found. |
+| `enableTgrep` | boolean | `true` | Registers the `tgrep` tool when the binary and a `.tgrep/` index are found. |
 | `tgrepBinPath` | string | PATH lookup | Explicit path to the `tgrep` binary. |
 
 Malformed configuration, unknown fields, and invalid values prevent the extension from loading and identify the configuration path in the error. `/fff-mode` changes session state only; it does not edit this file.
 
-The `tgrep` binary resolves as `TGREP_BIN` environment variable, then `tgrepBinPath`, then a `tgrep` executable on `PATH`. An explicit path that is set but not executable disables the tool instead of falling back, so a typo surfaces instead of silently changing the search backend.
+The `tgrep` binary resolves as `TGREP_BIN` environment variable, then `tgrepBinPath`, then a `tgrep` executable on `PATH`. An explicit path that is set but not executable disables the tool instead of falling back, so a typo surfaces instead of silently changing the search backend. Binary and `.tgrep/` index are resolved at session start, when the workspace cwd is known.
 
 ## Database resolution
 

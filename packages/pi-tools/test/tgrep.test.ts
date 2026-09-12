@@ -6,10 +6,12 @@ import path from "node:path";
 import {
   buildTgrepArgs,
   formatTgrepResult,
+  hasTgrepIndex,
   resolveSearchRoot,
   resolveTgrepBinary,
   runTgrep,
   TGREP_CONTEXT_MAX,
+  TGREP_INDEX_DIR,
   TGREP_OUTPUT_MAX_BYTES,
 } from "../src/tgrep";
 
@@ -220,6 +222,27 @@ describe("resolveTgrepBinary", () => {
     } finally {
       fs.rmSync(first, { recursive: true, force: true });
       fs.rmSync(second, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("hasTgrepIndex", () => {
+  test("is true only for a .tgrep directory in the given cwd", () => {
+    const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "tgrep-index-"));
+    const nested = path.join(cwd, "pkg");
+    try {
+      expect(hasTgrepIndex(cwd)).toBe(false);
+
+      fs.writeFileSync(path.join(cwd, TGREP_INDEX_DIR), "not a dir");
+      expect(hasTgrepIndex(cwd)).toBe(false);
+      fs.rmSync(path.join(cwd, TGREP_INDEX_DIR));
+
+      fs.mkdirSync(path.join(cwd, TGREP_INDEX_DIR));
+      fs.mkdirSync(nested);
+      expect(hasTgrepIndex(cwd)).toBe(true);
+      expect(hasTgrepIndex(nested)).toBe(false);
+    } finally {
+      fs.rmSync(cwd, { recursive: true, force: true });
     }
   });
 });

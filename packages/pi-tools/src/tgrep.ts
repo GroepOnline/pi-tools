@@ -5,6 +5,7 @@ import { promisify } from "node:util";
 
 export const TGREP_BIN_ENV = "TGREP_BIN";
 export const TGREP_TOOL_NAME = "tgrep";
+export const TGREP_INDEX_DIR = ".tgrep";
 export const TGREP_TIME_BUDGET_MS = 30_000;
 export const TGREP_OUTPUT_MAX_BYTES = 200_000;
 export const TGREP_CONTEXT_MAX = 20;
@@ -103,6 +104,15 @@ export function resolveTgrepBinary(explicit?: string, pathEnv = ""): string | un
     if (isExecutable(candidate)) return candidate;
   }
   return undefined;
+}
+
+/** True when the session cwd has a `.tgrep` directory (default tgrep index location). */
+export function hasTgrepIndex(cwd: string): boolean {
+  try {
+    return fs.statSync(path.join(cwd, TGREP_INDEX_DIR)).isDirectory();
+  } catch {
+    return false;
+  }
 }
 
 const execFileAsync = promisify(execFile);
