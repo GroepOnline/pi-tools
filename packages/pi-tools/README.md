@@ -84,6 +84,26 @@ Use `fffind` for **paths**. Use `ffgrep` when you know text that should occur in
 
 Use a concrete substring, identifier, or expression. A wildcard-only expression such as `.*` is rejected because it is not an efficient way to read an entire file. Keep the default grouped output when context matters; use `compact: true` when the next action only needs stable path-and-line references. Set `maxMatchesPerFile` when a generated or vendored file could otherwise dominate the page. Both options are additive and leave existing defaults unchanged.
 
+### `tgrep`
+
+`tgrep` searches file content through an external [tgrep](https://github.com/microsoft/tgrep) binary: trigram-indexed exact search with a client/server architecture. The tool is registered only when the binary is found, the session cwd has a `.tgrep/` index, and `enableTgrep` is not disabled; it keeps the name `tgrep` in every mode. Prefer `tgrep` for exact literals and symbols; prefer `ffgrep` for fuzzy, typo-tolerant, frecency-ranked search. After `tgrep index .` or `tgrep serve .`, reload the session to expose the tool.
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `pattern` | string | Literal text by default; set `literal: false` for a regular expression. Patterns like `serve` cannot parse as subcommands. |
+| `path` | string, optional | Directory or file to search, relative to the workspace; default is the workspace root. Globs go in `glob`. |
+| `glob` | string or string array, optional | Repeatable file glob filter such as `*.{ts,tsx}`. |
+| `fileType` | string or string array, optional | Repeatable file type filter such as `rust`, `py`, or `js`. |
+| `literal` | boolean, optional | Treats the pattern as literal text; default is `true`. |
+| `caseSensitive` | boolean, optional | Forces case-sensitive matching; default is smart-case. |
+| `wholeWord` | boolean, optional | Matches whole words only. |
+| `filesOnly` | boolean, optional | Prints only filenames with matches. |
+| `count` | boolean, optional | Prints the match count per file. |
+| `context` | number, optional | Context lines before and after a match; range 0–20. |
+| `maxCount` | number, optional | Limits matches per file. |
+
+Output is `file:line:col:text` rows. Exit code 1 (no match) is reported as `No matches found`, not as a failure. A leading `[tgrep: ...]` line carries the binary's stderr freshness warning. Only index-safe flags are forwarded; full-scan forcers (`--hidden`, `--no-ignore`, `-u`, `-a`, `--encoding`, `--no-index`) are excluded by design. After your own edits, use `ffgrep` because the index lags watcher events.
+
 ### Optional multi-pattern search
 
 Set `PI_FFF_MULTIGREP=1` before starting Pi to enable the experimental `fff-multi-grep` tool. It searches for **any** of several literal patterns in one request and is useful when an agent must check known naming variants together.
@@ -105,6 +125,7 @@ The tool is opt-in while its interaction pattern is evaluated. Do not depend on 
 | `/fff-mode [tools-and-ui \| tools-only \| override]` | Shows the current mode or records a mode for the current session. |
 | `/fff-health` | Displays the engine version, mode, Git integration, index status, persistence status, and active scan progress. |
 | `/fff-rescan` | Requests a new file scan for the active workspace. |
+| `/tgrep-status` | Shows tgrep index and server status for the workspace. |
 
 ## Persistent configuration
 
@@ -127,8 +148,13 @@ Create `pi-tools.json` in Pi’s agent directory. The default location is `~/.pi
 | `historyDbPath` | string | Auto-resolved | Location for query-selection history. |
 | `enableFsRootScanning` | boolean | `false` | Explicitly allows scans started from `/`. |
 | `enableHomeDirScanning` | boolean | `true` | Allows scanning when Pi starts in the home directory. |
+| `enableTgrep` | boolean | `true` | Registers the `tgrep` tool when the binary and a `.tgrep/` index are found. |
+| `tgrepBinPath` | string | PATH lookup | Explicit path to the `tgrep` binary. |
+| `tgrepTimeBudgetMs` | number | `30000` | Child-process time budget in milliseconds. `TGREP_TIME_BUDGET_MS` overrides this. |
 
 Malformed configuration, unknown fields, and invalid values prevent the extension from loading and identify the configuration path in the error. `/fff-mode` changes session state only; it does not edit this file.
+
+The `tgrep` binary resolves as `TGREP_BIN` environment variable, then `tgrepBinPath`, then a `tgrep` executable on `PATH`. An explicit path that is set but not executable disables the tool instead of falling back, so a typo surfaces instead of silently changing the search backend. Binary and `.tgrep/` index are resolved at session start, when the workspace cwd is known. Installing tgrep or building an index mid-session requires `/reload` before the tool appears.
 
 ## Database resolution
 

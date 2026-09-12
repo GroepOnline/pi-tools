@@ -16,6 +16,9 @@ export interface FffConfig {
   historyDbPath?: string;
   enableFsRootScanning?: boolean;
   enableHomeDirScanning?: boolean;
+  enableTgrep?: boolean;
+  tgrepBinPath?: string;
+  tgrepTimeBudgetMs?: number;
 }
 
 const CONFIG_KEYS = new Set<keyof FffConfig>([
@@ -25,8 +28,15 @@ const CONFIG_KEYS = new Set<keyof FffConfig>([
   "historyDbPath",
   "enableFsRootScanning",
   "enableHomeDirScanning",
+  "enableTgrep",
+  "tgrepBinPath",
+  "tgrepTimeBudgetMs",
 ]);
 
+/**
+ * Loads and validates pi-tools.json, falling back to the legacy filename.
+ * Returns an empty config when neither file exists and throws for unreadable or invalid files.
+ */
 export function loadConfig(agentDir = piDataDir()): FffConfig {
   let configPath = join(agentDir, CONFIG_FILE_NAME);
   const legacyConfigPath = join(agentDir, LEGACY_CONFIG_FILE_NAME);
@@ -75,8 +85,11 @@ export function loadConfig(agentDir = piDataDir()): FffConfig {
   validateString(configPath, parsed, "$schema");
   validateString(configPath, parsed, "frecencyDbPath");
   validateString(configPath, parsed, "historyDbPath");
+  validateString(configPath, parsed, "tgrepBinPath");
   validateBoolean(configPath, parsed, "enableFsRootScanning");
   validateBoolean(configPath, parsed, "enableHomeDirScanning");
+  validateBoolean(configPath, parsed, "enableTgrep");
+  validatePositiveInteger(configPath, parsed, "tgrepTimeBudgetMs");
 
   return parsed as FffConfig;
 }
@@ -93,10 +106,11 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+/** Validates that an optional configuration value is a non-empty string. */
 function validateString(
   configPath: string,
   config: Record<string, unknown>,
-  key: "$schema" | "frecencyDbPath" | "historyDbPath",
+  key: "$schema" | "frecencyDbPath" | "historyDbPath" | "tgrepBinPath",
 ): void {
   const value = config[key];
   if (value !== undefined && (typeof value !== "string" || value.length === 0)) {
@@ -104,13 +118,26 @@ function validateString(
   }
 }
 
+/** Validates that an optional configuration value is boolean. */
 function validateBoolean(
   configPath: string,
   config: Record<string, unknown>,
-  key: "enableFsRootScanning" | "enableHomeDirScanning",
+  key: "enableFsRootScanning" | "enableHomeDirScanning" | "enableTgrep",
 ): void {
   const value = config[key];
   if (value !== undefined && typeof value !== "boolean") {
     throw invalidConfig(configPath, `"${key}" must be a boolean`);
+  }
+}
+
+function validatePositiveInteger(
+  configPath: string,
+  config: Record<string, unknown>,
+  key: "tgrepTimeBudgetMs",
+): void {
+  const value = config[key];
+  if (value === undefined) return;
+  if (typeof value !== "number" || !Number.isInteger(value) || value < 1) {
+    throw invalidConfig(configPath, `"${key}" must be a positive integer`);
   }
 }

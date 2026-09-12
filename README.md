@@ -42,6 +42,7 @@ pi install -l npm:@groeponline/pi-tools
 | `find` (spawns `fd`) | `fffind` (FFF `fileSearch`) | Fuzzy matching, frecency ranking, git-aware, pre-indexed |
 | `grep` (spawns `rg`) | `ffgrep` (FFF `grep`) | SIMD-accelerated, frecency-ordered, mmap-cached, no subprocess |
 | *(none)* | `fff-multi-grep` (FFF `multiGrep`, opt-in) | OR-logic multi-pattern search via Aho-Corasick |
+| *(none)* | `tgrep` (external [tgrep](https://github.com/microsoft/tgrep) binary) | Trigram-indexed exact search when a workspace `.tgrep/` index exists |
 | `@` file autocomplete (fd-backed) | `@` file autocomplete (FFF-backed, default) | Fuzzy ranking from the FFF index and frecency |
 
 ### Modes
@@ -54,20 +55,22 @@ Three operating modes, switchable at runtime with `/fff-mode`:
 | `tools-only` | Only tool injection. Keeps pi's native editor autocomplete. |
 | `override` | Replaces pi's built-in `grep` and `find` with FFF implementations. With `PI_FFF_MULTIGREP=1`, also registers `multi_grep`. |
 
-Set `PI_FFF_MULTIGREP=1` to opt in to `fff-multi-grep` (or `multi_grep` in `override` mode). Without it, only `ffgrep` and `fffind` are registered.
+Set `PI_FFF_MULTIGREP=1` to opt in to `fff-multi-grep` (or `multi_grep` in `override` mode). Without it, only `ffgrep` and `fffind` are registered. `tgrep` is registered independently of mode when the binary and a `.tgrep/` index are found.
 
-Env vars: `PI_FFF_MODE`, `FFF_FRECENCY_DB`, `FFF_HISTORY_DB`. Flags: `--fff-mode`, `--fff-frecency-db`, `--fff-history-db`. The databases default to your existing fff.nvim ones when present, otherwise `~/.pi/agent/fff/`.
+Env vars: `PI_FFF_MODE`, `FFF_FRECENCY_DB`, `FFF_HISTORY_DB`, `TGREP_BIN`, `TGREP_TIME_BUDGET_MS`. Flags: `--fff-mode`, `--fff-frecency-db`, `--fff-history-db`. Config (`~/.pi/agent/pi-tools.json`): `enableTgrep` (default true), `tgrepBinPath`, `tgrepTimeBudgetMs` (default 30000). The databases default to your existing fff.nvim ones when present, otherwise `~/.pi/agent/fff/`.
 
 ### Agent-facing tools
 
 - `ffgrep`. Content search. Accepts `path`, `exclude` (comma, space, or array; leading `!` optional), `caseSensitive`, `context`, and cursor pagination. Auto-detects regex, falls back to fuzzy on zero exact matches, rejects `.*`-style wildcard-only patterns up front.
 - `fffind`. Path and filename search. Matches the whole repo-relative path, not just the filename. Frecency-aware. The weak-match detector flags scattered fuzzy noise before it floods the agent's context.
+- `tgrep`. Exact literal/symbol search through an external tgrep binary. Registered only when the binary resolves (`TGREP_BIN` → `tgrepBinPath` → `PATH`) and the workspace has a `.tgrep/` index. After your own edits, use `ffgrep`.
 
 ### Commands
 
 - `/fff-mode [tools-and-ui | tools-only | override]`. Show or switch the mode.
 - `/fff-health`. Picker, frecency, and git integration status.
 - `/fff-rescan`. Force a rescan.
+- `/tgrep-status`. tgrep index and server status for the workspace.
 
 Source: [`packages/pi-tools/`](./packages/pi-tools/). Full documentation: [`packages/pi-tools/README.md`](./packages/pi-tools/README.md).
 

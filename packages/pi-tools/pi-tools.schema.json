@@ -36,6 +36,22 @@
       "type": "boolean",
       "default": true,
       "description": "Allows indexing when pi is launched from the home directory."
+    },
+    "enableTgrep": {
+      "type": "boolean",
+      "default": true,
+      "description": "Registers the tgrep trigram-index search tool when the tgrep binary is found and the workspace has a .tgrep index."
+    },
+    "tgrepBinPath": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Explicit path to the tgrep binary; the TGREP_BIN environment variable takes precedence over config.tgrepBinPath, then PATH is used as a fallback."
+    },
+    "tgrepTimeBudgetMs": {
+      "type": "integer",
+      "minimum": 1,
+      "default": 30000,
+      "description": "Maximum milliseconds for a tgrep child process. TGREP_TIME_BUDGET_MS overrides this value."
     }
   }
 }

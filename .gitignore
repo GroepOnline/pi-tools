@@ -105,3 +105,6 @@ Pods/
 .factory/
 .jules/
 .remember/
+
+# tgrep trigram indexes (per-repo, rebuilt via `tgrep index .`)
+.tgrep/
