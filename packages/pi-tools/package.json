@@ -46,6 +46,7 @@
     "src",
     "pi-tools.schema.json",
     "skills/cli-search-tools/SKILL.md",
+    "skills/cli-search-tools/LICENSE.cli-search-tools",
     "skills/cli-search-tools/scripts/search-pi-logs.sh"
   ],
   "publishConfig": {

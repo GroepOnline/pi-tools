@@ -31,7 +31,7 @@ rg -t py "import" .
 rg -t md "TODO" .
 
 # JSON output (ideaal voor pipen naar jq)
-rg -j "error" . --json | jq -r '.data.path.text + ":" + (.data.line_number|tostring) + ": " + .data.lines.text'
+rg "error" . --json | jq -r '.data.path.text + ":" + (.data.line_number|tostring) + ": " + .data.lines.text'
 
 # Zoek met context (3 regels voor/na)
 rg -C3 "Error" server.log
@@ -49,7 +49,7 @@ rg -oP '(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2}:\d{2})' logs/
 rg --files | rg "\.config$"
 
 # Negatieve lookaround (Python-regex)
-rg "(?!#)TODO" .  # TODO's niet na #
+rg -P '^(?!#).*TODO' .  # TODO's niet na #
 ```
 
 ### fzf (non-interactive / agent-gebruik)

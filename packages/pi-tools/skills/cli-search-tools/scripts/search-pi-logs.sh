@@ -41,8 +41,8 @@ find "$SESSION_DIR" -name "*.jsonl" -exec cat {} + 2>/dev/null | \
     )
     | select(
         ($zt == "") or
-        (.message.errorMessage // "" | test($zt; "i")) or
-        (.message.content // [] | map(select(.type == "text") | .text) | join(" ") | test($zt; "i"))
+        (.message.errorMessage // "" | ascii_downcase | contains($zt | ascii_downcase)) or
+        (.message.content // [] | map(select(.type == "text") | .text) | join(" ") | ascii_downcase | contains($zt | ascii_downcase))
     )
     | {
         ts: .timestamp[0:19],
