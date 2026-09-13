@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Zoek in Pi sessie-logs (JSONL) voor fouten, modellen, providers
 # Gebruik: bash scripts/search-pi-logs.sh [opties]
-#   --zoekterm "term"    Filter op tekst
+#   --zoekterm "term"    Filter op inhoud
 #   --type error|user|all
 #   --model glm          Filter op model (regex)
 #   --provider zai       Filter op provider (regex)

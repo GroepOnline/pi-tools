@@ -68,7 +68,7 @@ ls *.log | fzf --filter "error" --preview "head -20 {}"
 # Query mode (filter + sort)
 rg -l "error" . | fzf --query "server" --no-sort
 
-# fzf als selectie-tool in scripts (met --height voor terminal)
+# fzf gebruiken voor keuzes in scripts (met --height voor terminal)
 cat data.txt | fzf --multi --height=40% --header="Select lines"
 
 # fzf met field delimiter en nth-filter
@@ -121,14 +121,14 @@ awk '{printf "%s;", $0}' file.txt
 # Kolommen tellen per groep
 awk '{count[$1]++} END {for (k in count) print k, count[k]}' access.log
 
-# Tijd-format conversie (epoch naar leesbaar)
+# Tijd-format omzetting (epoch naar leesbaar)
 awk '{print strftime("%Y-%m-%d %H:%M", $1)}' timestamps.txt
 ```
 
-### Pipe-composities (praktijkvoorbeelden)
+### Pipe-combinaties (praktijkvoorbeelden)
 
 ```bash
-# Zoek alle fouten in JSONL logs en groepeer per model
+# Zoek iedere fout in JSONL logs en groepeer per model
 cat ~/.pi/agent/sessions/**/*.jsonl | \
   jq -c 'select(.message.stopReason == "error") | .message.model' | \
   sort | uniq -c | sort -rn
@@ -144,7 +144,7 @@ rg "HTTP" access.log | \
   sort | uniq -c | sort -rn | \
   head -20
 
-# JSONL sessie-logs: alle unieke modellen met fout-count
+# JSONL sessie-logs: unieke modellen met fout-count
 find ~/.pi/agent/sessions -name "*.jsonl" -exec cat {} + | \
   jq -r 'select(.message.stopReason == "error") | .message.model' | \
   sort | uniq -c | sort -rn
@@ -153,7 +153,7 @@ find ~/.pi/agent/sessions -name "*.jsonl" -exec cat {} + | \
 find . -name "*.ts" -o -name "*.js" | \
   fzf --filter "config" --preview "head -5 {}"
 
-# rg JSON output naar jq: alle "TODO" in TypeScript met pad + regelnummer
+# rg JSON output naar jq: iedere "TODO" in TypeScript met pad + regelnummer
 rg -t ts "TODO" . --json | \
   jq -r '"\(.data.path.text):\(.data.line_number): \(.data.lines.text | trim)"'
 
@@ -166,7 +166,7 @@ rg "ERROR" app.log | \
 
 ## Gebruik per taak
 
-### Taak: "Zoek alle fouten in deze logs"
+### Taak: "Zoek iedere fout in deze logs"
 ```bash
 rg -i "error|exception|fatal" logs/ -C2
 # Of voor JSONL:
@@ -204,7 +204,7 @@ rg --files | rg "config"
 
 ### Taak: "Samengestelde pipeline maken"
 ```bash
-# Stap 1: verzamel, stap 2: filter, stap 3: transform, stap 4: toon
+# 1: verzamel, 2: filter, 3: transform, 4: toon
 find . -name "*.log" -exec rg -l "ERROR" {} + | \
   fzf --filter "server" | \
   xargs -I{} rg --no-line-number "ERROR" {} | \
@@ -219,5 +219,5 @@ find . -name "*.log" -exec rg -l "ERROR" {} + | \
 3. **jq -c** geeft compacte JSON (1 regel per item) — ideaal voor pipe-verwerking
 4. **xargs -I{}** voor het uitvoeren van commands per resultaat
 5. **uniq -c | sort -rn** voor tel-samenvattingen
-6. **find -exec** of **find | xargs** om bulk-verwerking te doen
+6. **find -exec** of **find | xargs** om bulk-verwerking uit te voeren
 7. **awk '$NF** selecteert laatste veld, **awk '{print $1}'** eerste kolom
