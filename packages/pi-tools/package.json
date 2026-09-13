@@ -37,11 +37,17 @@
     "extensions": [
       "./src/index.ts"
     ],
+    "skills": [
+      "./skills/cli-search-tools/SKILL.md"
+    ],
     "image": "https://raw.githubusercontent.com/GroepOnline/pi-tools/main/assets/logo-orange.png"
   },
   "files": [
     "src",
-    "pi-tools.schema.json"
+    "pi-tools.schema.json",
+    "skills/cli-search-tools/SKILL.md",
+    "skills/cli-search-tools/LICENSE.cli-search-tools",
+    "skills/cli-search-tools/scripts/search-pi-logs.sh"
   ],
   "publishConfig": {
     "access": "public"
