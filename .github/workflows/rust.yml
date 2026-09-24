@@ -128,6 +128,7 @@ jobs:
           name: proptest-regressions-${{ matrix.os }}
           path: crates/fff-core/tests/fuzz_git_watcher_stress.proptest-regressions
           if-no-files-found: ignore
+          retention-days: 1
 
   build-i686:
     name: Build i686-unknown-linux-gnu
