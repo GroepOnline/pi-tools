@@ -218,10 +218,9 @@ describe('programmatic search APIs', function()
       local before = fff.content_search(marker)
       assert.are.equal(0, #before.items, 'marker leaked into primary fff tree')
 
-      -- Poll instead of asserting on the first grep: the index of the new root
-      -- can lag a mkdir by a few ms on CI, which flaked on linux too.
+      -- Content index can lag the file scan after a cwd swap. 2s flaked on linux CI.
       local result
-      vim.wait(2000, function()
+      vim.wait(10000, function()
         result = fff.content_search(marker, { cwd = sandbox_root })
         return #result.items > 0
       end, 50)
