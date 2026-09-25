@@ -6,6 +6,10 @@ noice = "noice"
 fo = "fo"
 ba = "ba"
 ue = "ue"
+als = "als"
+Als = "Als"
+selectie = "selectie"
+Selectie = "Selectie"
 # file extensions that look like typos
 thm = "thm"
 # some typos we use for tests
