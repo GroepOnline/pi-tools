@@ -249,7 +249,7 @@ impl FffServer {
             self.update_notice_sent.store(false, Ordering::Relaxed);
             return;
         }
-        result.content.push(Content::text(notice));
+        result.content.push(ContentBlock::text(notice));
     }
 
     fn perform_grep(
@@ -317,7 +317,7 @@ impl FffServer {
                             picker,
                         }
                         .format(&mut cs);
-                        return Ok(CallToolResult::success(vec![Content::text(format!(
+                        return Ok(CallToolResult::success(vec![ContentBlock::text(format!(
                             "0 matches for '{}'. Auto-broadened to '{}':\n{}",
                             query, rest_query, text
                         ))]));
@@ -347,7 +347,7 @@ impl FffServer {
                     }
                     lines.push(format!(" {}: {}", m.line_number, m.line_content));
                 }
-                return Ok(CallToolResult::success(vec![Content::text(
+                return Ok(CallToolResult::success(vec![ContentBlock::text(
                     lines.join("\n"),
                 )]));
             }
@@ -374,7 +374,7 @@ impl FffServer {
                     // Only suggest when the match is strong enough.
                     let query_len = query.len() as i32;
                     if score.base_score > query_len * 10 {
-                        return Ok(CallToolResult::success(vec![Content::text(format!(
+                        return Ok(CallToolResult::success(vec![ContentBlock::text(format!(
                             "0 content matches. But there is a relevant file path: {}",
                             top.relative_path(picker)
                         ))]));
@@ -382,13 +382,13 @@ impl FffServer {
                 }
             }
 
-            return Ok(CallToolResult::success(vec![Content::text(
+            return Ok(CallToolResult::success(vec![ContentBlock::text(
                 "0 matches.".to_string(),
             )]));
         }
 
         if result.matches.is_empty() {
-            return Ok(CallToolResult::success(vec![Content::text(
+            return Ok(CallToolResult::success(vec![ContentBlock::text(
                 "0 matches.".to_string(),
             )]));
         }
@@ -407,7 +407,7 @@ impl FffServer {
         }
         .format(&mut cs);
 
-        Ok(CallToolResult::success(vec![Content::text(text)]))
+        Ok(CallToolResult::success(vec![ContentBlock::text(text)]))
     }
 }
 
@@ -486,7 +486,7 @@ impl FffServer {
             };
 
         if items.is_empty() {
-            return Ok(CallToolResult::success(vec![Content::text(format!(
+            return Ok(CallToolResult::success(vec![ContentBlock::text(format!(
                 "0 results ({} indexed)",
                 total_files
             ))]));
@@ -531,7 +531,7 @@ impl FffServer {
             lines.push(format!("cursor: {}", cursor_id));
         }
 
-        let mut result = CallToolResult::success(vec![Content::text(lines.join("\n"))]);
+        let mut result = CallToolResult::success(vec![ContentBlock::text(lines.join("\n"))]);
         self.maybe_append_update_notice(&mut result);
         Ok(result)
     }
@@ -634,7 +634,7 @@ impl FffServer {
         let file_refs: Vec<&FileItem> = result.files.to_vec();
 
         if result.matches.is_empty() {
-            return Ok(CallToolResult::success(vec![Content::text(
+            return Ok(CallToolResult::success(vec![ContentBlock::text(
                 "0 matches.".to_string(),
             )]));
         }
@@ -653,7 +653,7 @@ impl FffServer {
         }
         .format(&mut cs);
 
-        Ok(CallToolResult::success(vec![Content::text(text)]))
+        Ok(CallToolResult::success(vec![ContentBlock::text(text)]))
     }
 }
 
